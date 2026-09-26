@@ -1,0 +1,4 @@
+{ "Items": [
+  { "Name": "Staffel 1", "Id": "season1", "Type": "Season", "SeriesId": "series1", "SeriesName": "The Expanse", "IndexNumber": 1, "ImageTags": {}, "UserData": { "UnplayedItemCount": 2 } },
+  { "Name": "Staffel 2", "Id": "season2", "Type": "Season", "SeriesId": "series1", "SeriesName": "The Expanse", "IndexNumber": 2, "ImageTags": {}, "UserData": { "UnplayedItemCount": 3 } }
+], "TotalRecordCount": 2, "StartIndex": 0 }

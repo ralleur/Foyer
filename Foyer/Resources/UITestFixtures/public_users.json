@@ -1,0 +1,2 @@
+[ { "Name": "anna", "ServerId": "srv1", "Id": "user1", "HasPassword": true },
+  { "Name": "kids", "ServerId": "srv1", "Id": "user2", "HasPassword": false } ]

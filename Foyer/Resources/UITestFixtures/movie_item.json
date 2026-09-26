@@ -1,0 +1,130 @@
+{
+  "Name": "Dune: Part Two",
+  "OriginalTitle": "Dune: Part Two",
+  "ServerId": "srv1",
+  "Id": "a1b2c3",
+  "Etag": "e0f1",
+  "DateCreated": "2024-05-01T12:34:56.1234567Z",
+  "PremiereDate": "2024-02-27T00:00:00.0000000Z",
+  "OfficialRating": "FSK 12",
+  "CommunityRating": 8.4,
+  "CriticRating": 92,
+  "Overview": "Paul Atreides unites with Chani and the Fremen.",
+  "Taglines": ["Long live the fighters."],
+  "Genres": ["Science Fiction", "Adventure"],
+  "RunTimeTicks": 99840000000,
+  "ProductionYear": 2024,
+  "IsFolder": false,
+  "Type": "Movie",
+  "MediaType": "Video",
+  "Container": "mkv",
+  "HasSubtitles": true,
+  "Width": 3840,
+  "Height": 1608,
+  "LocationType": "FileSystem",
+  "UserData": {
+    "PlaybackPositionTicks": 12000000000,
+    "PlayCount": 1,
+    "IsFavorite": false,
+    "Played": false,
+    "PlayedPercentage": 12.02,
+    "Key": "12345"
+  },
+  "ImageTags": { "Primary": "p1", "Logo": "l1" },
+  "BackdropImageTags": ["b1"],
+  "PrimaryImageAspectRatio": 0.6666,
+  "People": [
+    { "Name": "Timothée Chalamet", "Id": "pp1", "Role": "Paul Atreides", "Type": "Actor", "PrimaryImageTag": "t1" },
+    { "Name": "Denis Villeneuve", "Id": "pp2", "Type": "Director" }
+  ],
+  "Studios": [{ "Name": "Legendary Pictures", "Id": "s1" }],
+  "Chapters": [
+    { "StartPositionTicks": 0, "Name": "Chapter 1", "ImageTag": "c1" },
+    { "StartPositionTicks": 6000000000, "Name": "Chapter 2" }
+  ],
+  "Trickplay": {
+    "ms1": {
+      "320": { "Width": 320, "Height": 134, "TileWidth": 10, "TileHeight": 10, "ThumbnailCount": 998, "Interval": 10000, "Bandwidth": 200000 }
+    }
+  },
+  "MediaSources": [
+    {
+      "Protocol": "File",
+      "Id": "ms1",
+      "Path": "/media/movies/Dune Part Two (2024)/Dune.Part.Two.2024.2160p.UHD.BluRay.mkv",
+      "Type": "Default",
+      "Container": "mkv",
+      "Size": 68719476736,
+      "Name": "2160p UHD BluRay",
+      "IsRemote": false,
+      "ETag": "e0f1",
+      "RunTimeTicks": 99840000000,
+      "ReadAtNativeFramerate": false,
+      "SupportsTranscoding": true,
+      "SupportsDirectStream": true,
+      "SupportsDirectPlay": true,
+      "IsInfiniteStream": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false,
+      "RequiresLooping": false,
+      "SupportsProbing": true,
+      "VideoType": "VideoFile",
+      "MediaStreams": [
+        {
+          "Codec": "hevc", "CodecTag": "hev1", "Language": "eng", "TimeBase": "1/1000",
+          "VideoRange": "HDR", "VideoRangeType": "DOVIWithHDR10", "VideoDoViTitle": "DV Profile 8.1",
+          "DvVersionMajor": 1, "DvVersionMinor": 0, "DvProfile": 8, "DvLevel": 6, "RpuPresentFlag": 1, "ElPresentFlag": 0, "BlPresentFlag": 1, "DvBlSignalCompatibilityId": 1,
+          "ColorSpace": "bt2020nc", "ColorTransfer": "smpte2084", "ColorPrimaries": "bt2020",
+          "DisplayTitle": "4K HEVC HDR", "NalLengthSize": "4", "IsInterlaced": false, "IsAVC": false,
+          "BitRate": 62000000, "BitDepth": 10, "RefFrames": 1, "IsDefault": true, "IsForced": false, "IsHearingImpaired": false,
+          "Height": 1608, "Width": 3840, "AverageFrameRate": 23.976025, "RealFrameRate": 23.976025, "Profile": "Main 10",
+          "Type": "Video", "AspectRatio": "2.39:1", "Index": 0, "IsExternal": false, "IsTextSubtitleStream": false,
+          "SupportsExternalStream": false, "PixelFormat": "yuv420p10le", "Level": 153
+        },
+        {
+          "Codec": "truehd", "Language": "eng", "TimeBase": "1/1000", "Title": "TrueHD Atmos 7.1",
+          "DisplayTitle": "English - TrueHD Atmos - 7.1", "IsInterlaced": false, "ChannelLayout": "7.1", "BitRate": 4500000,
+          "Channels": 8, "SampleRate": 48000, "IsDefault": true, "IsForced": false, "IsHearingImpaired": false,
+          "Profile": "Dolby TrueHD + Dolby Atmos", "AudioSpatialFormat": "DolbyAtmos",
+          "Type": "Audio", "Index": 1, "IsExternal": false, "IsTextSubtitleStream": false, "SupportsExternalStream": false
+        },
+        {
+          "Codec": "eac3", "Language": "ger", "TimeBase": "1/1000", "Title": "Deutsch DD+ 5.1",
+          "DisplayTitle": "Deutsch - Dolby Digital Plus - 5.1", "IsInterlaced": false, "ChannelLayout": "5.1",
+          "Channels": 6, "SampleRate": 48000, "IsDefault": false, "IsForced": false, "IsHearingImpaired": false,
+          "Type": "Audio", "Index": 2, "IsExternal": false, "IsTextSubtitleStream": false, "SupportsExternalStream": false
+        },
+        {
+          "Codec": "dts", "Language": "eng", "Profile": "DTS-HD MA", "DisplayTitle": "English - DTS-HD MA - 5.1", "Channels": 6,
+          "Type": "Audio", "Index": 3, "IsDefault": false, "IsForced": false, "IsExternal": false
+        },
+        {
+          "Codec": "subrip", "Language": "ger", "DisplayTitle": "Deutsch - Forced - SUBRIP", "IsDefault": true, "IsForced": true,
+          "IsHearingImpaired": false, "Type": "Subtitle", "Index": 4, "IsExternal": false, "IsTextSubtitleStream": true, "SupportsExternalStream": true
+        },
+        {
+          "Codec": "subrip", "Language": "ger", "DisplayTitle": "Deutsch - SUBRIP", "IsDefault": false, "IsForced": false,
+          "Type": "Subtitle", "Index": 5, "IsExternal": false, "IsTextSubtitleStream": true, "SupportsExternalStream": true
+        },
+        {
+          "Codec": "PGSSUB", "Language": "eng", "DisplayTitle": "English - PGSSUB", "IsDefault": false, "IsForced": false,
+          "Type": "Subtitle", "Index": 6, "IsExternal": false, "IsTextSubtitleStream": false, "SupportsExternalStream": false
+        },
+        {
+          "Codec": "subrip", "Language": "eng", "Title": "English SDH", "DisplayTitle": "English SDH - External - SUBRIP", "IsDefault": false, "IsForced": false,
+          "IsHearingImpaired": true, "Type": "Subtitle", "Index": 7, "IsExternal": true, "IsTextSubtitleStream": true, "SupportsExternalStream": true,
+          "Path": "/media/movies/Dune Part Two (2024)/Dune.Part.Two.2024.en.sdh.srt"
+        }
+      ],
+      "MediaAttachments": [
+        { "Codec": "ttf", "CodecTag": "", "Index": 8, "FileName": "Roboto.ttf", "MimeType": "application/x-truetype-font", "DeliveryUrl": "/Videos/a1b2c3/ms1/Attachments/8" }
+      ],
+      "Formats": [],
+      "Bitrate": 66500000,
+      "DefaultAudioStreamIndex": 1,
+      "DefaultSubtitleStreamIndex": 4
+    }
+  ],
+  "FutureField": { "Nested": true },
+  "VideoType": "VideoFile"
+}

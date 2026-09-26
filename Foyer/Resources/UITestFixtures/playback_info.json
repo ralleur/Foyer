@@ -1,0 +1,43 @@
+{
+ "MediaSources": [
+  {
+   "Protocol": "File",
+   "Id": "ms1",
+   "Container": "mkv",
+   "SupportsTranscoding": true,
+   "SupportsDirectStream": true,
+   "SupportsDirectPlay": true,
+   "TranscodingSubProtocol": "hls",
+   "TranscodingContainer": "mp4",
+   "DefaultAudioStreamIndex": 1,
+   "DefaultSubtitleStreamIndex": -1,
+   "MediaStreams": [
+    {
+     "Codec": "hevc",
+     "Type": "Video",
+     "Index": 0,
+     "VideoRangeType": "DOVIWithHDR10",
+     "Width": 3840,
+     "Height": 1608
+    },
+    {
+     "Codec": "truehd",
+     "Type": "Audio",
+     "Index": 1,
+     "Language": "eng",
+     "Channels": 8
+    },
+    {
+     "Codec": "subrip",
+     "Type": "Subtitle",
+     "Index": 5,
+     "Language": "ger",
+     "IsTextSubtitleStream": true,
+     "DeliveryMethod": "External",
+     "DeliveryUrl": "/Videos/a1b2c3/ms1/Subtitles/5/0/Stream.srt?api_key=TOKEN123"
+    }
+   ]
+  }
+ ],
+ "PlaySessionId": "ps1"
+}

@@ -1,0 +1,2 @@
+/* English is the development language; keys double as values. This file exists so Xcode lists English as a supported localization. */
+"Home" = "Home";
