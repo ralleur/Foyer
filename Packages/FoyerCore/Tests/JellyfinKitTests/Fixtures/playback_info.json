@@ -1,0 +1,23 @@
+{
+  "MediaSources": [
+    {
+      "Protocol": "File",
+      "Id": "ms1",
+      "Container": "mkv",
+      "SupportsTranscoding": true,
+      "SupportsDirectStream": true,
+      "SupportsDirectPlay": false,
+      "TranscodingUrl": "/videos/a1b2c3/master.m3u8?DeviceId=dev1&MediaSourceId=ms1&VideoCodec=hevc,h264&AudioCodec=eac3,aac&AudioStreamIndex=1&VideoBitrate=139616000&AudioBitrate=384000&AudioSampleRate=48000&MaxFramerate=23.976025&PlaySessionId=ps1&api_key=TOKEN123&TranscodingMaxAudioChannels=6&RequireAvc=false&EnableAudioVbrEncoding=true&Tag=e0f1&SegmentContainer=mp4&MinSegments=2&BreakOnNonKeyFrames=True&hevc-level=153&hevc-videobitdepth=10&hevc-profile=main10&hevc-rangetype=DOVIWithHDR10&TranscodeReasons=AudioCodecNotSupported",
+      "TranscodingSubProtocol": "hls",
+      "TranscodingContainer": "mp4",
+      "DefaultAudioStreamIndex": 1,
+      "DefaultSubtitleStreamIndex": -1,
+      "MediaStreams": [
+        { "Codec": "hevc", "Type": "Video", "Index": 0, "VideoRangeType": "DOVIWithHDR10", "Width": 3840, "Height": 1608 },
+        { "Codec": "truehd", "Type": "Audio", "Index": 1, "Language": "eng", "Channels": 8 },
+        { "Codec": "subrip", "Type": "Subtitle", "Index": 5, "Language": "ger", "IsTextSubtitleStream": true, "DeliveryMethod": "External", "DeliveryUrl": "/Videos/a1b2c3/ms1/Subtitles/5/0/Stream.srt?api_key=TOKEN123" }
+      ]
+    }
+  ],
+  "PlaySessionId": "ps1"
+}

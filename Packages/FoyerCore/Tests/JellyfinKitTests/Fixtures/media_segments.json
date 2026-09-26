@@ -1,0 +1,9 @@
+{
+  "Items": [
+    { "Id": "seg1", "ItemId": "ep1", "Type": "Intro", "StartTicks": 300000000, "EndTicks": 1200000000 },
+    { "Id": "seg2", "ItemId": "ep1", "Type": "Outro", "StartTicks": 25000000000, "EndTicks": 27000000000 },
+    { "Id": "seg3", "ItemId": "ep1", "Type": "SomethingNew", "StartTicks": 1, "EndTicks": 2 }
+  ],
+  "TotalRecordCount": 3,
+  "StartIndex": 0
+}

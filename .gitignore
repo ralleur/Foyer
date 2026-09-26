@@ -1,0 +1,24 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/FoyerCore/.build/
+Package.resolved.bak
+
+# macOS
+.DS_Store
+
+# Secrets / local config (never commit)
+*.xcconfig.local
+LocalSigning.xcconfig
