@@ -9,6 +9,7 @@ struct SeriesDetailView: View {
     @State private var model: SeriesViewModel
     @Environment(AppEnvironment.self) private var environment
     @State private var showOverview = false
+    @State private var pushedEpisode: BaseItem?
     @Namespace private var focusNamespace
 
     init(seriesId: String, initialSeries: BaseItem?, initialSeasonId: String? = nil) {
@@ -49,6 +50,9 @@ struct SeriesDetailView: View {
         }
         .sheet(isPresented: $showOverview) {
             OverviewSheet(title: model.series?.displayTitle ?? "", text: model.series?.overview ?? "")
+        }
+        .navigationDestination(item: $pushedEpisode) { episode in
+            ItemDestination(item: episode)
         }
         .accessibilityIdentifier("seriesDetail")
     }
@@ -151,7 +155,7 @@ struct SeriesDetailView: View {
                         environment.play(episode, start: .automatic)
                     }
                     .contextMenu {
-                        NavigationLink(value: NavigationTarget(item: episode)) {
+                        Button { pushedEpisode = episode } label: {
                             Label(L10n.details, systemImage: "info.circle")
                         }
                         Button { environment.play(episode, start: .beginning) } label: {
