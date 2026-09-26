@@ -11,29 +11,25 @@ struct PlayerScreen: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            switch coordinator.phase {
-            case .preparing:
-                if coordinator.engine == nil || coordinator.isSwitchingEngine {
-                    preparingView
-                }
-            case .failed(let error):
-                PlayerErrorView(error: error) { coordinator.close() }
-            case .finished:
-                Color.black
-            case .ready:
-                EmptyView()
-            }
             if let engine = coordinator.engine {
                 EngineHostView(engine: engine)
                     .id(coordinator.engineGeneration)
                     .ignoresSafeArea()
                     .opacity(coordinator.phase == .ready || coordinator.isSwitchingEngine ? 1 : 0)
-                if engine.kind == .advanced {
+                if engine.kind == .advanced, coordinator.phase == .ready {
                     AdvancedPlayerOverlay(coordinator: coordinator)
                         .ignoresSafeArea()
-                } else if coordinator.isSwitchingEngine {
-                    preparingView
                 }
+            }
+            switch coordinator.phase {
+            case .preparing:
+                preparingView
+            case .failed(let error):
+                PlayerErrorView(error: error) { coordinator.close() }
+            case .finished:
+                Color.black.ignoresSafeArea()
+            case .ready:
+                EmptyView()
             }
         }
         .onAppear {
@@ -63,7 +59,7 @@ struct PlayerScreen: View {
                 .foregroundStyle(Color.foyerSecondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(coordinator.isSwitchingEngine ? Color.black.opacity(0.4) : Color.black)
         .transition(.opacity)
     }
 

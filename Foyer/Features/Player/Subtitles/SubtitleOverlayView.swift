@@ -24,7 +24,7 @@ struct SubtitleCueView: View {
     var bottomInset: CGFloat = 90
 
     @State private var cues: [SubtitleCue] = []
-    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {

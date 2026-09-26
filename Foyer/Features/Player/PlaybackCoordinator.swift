@@ -77,6 +77,9 @@ final class PlaybackCoordinator: Identifiable {
     private let skipPolicy = SkipSegmentPolicy()
     private let countdownPolicy = NextEpisodeCountdownPolicy()
     private var closed = false
+    private var loadedFullItem = false
+    /// Set while a next/previous item or a route change is in flight; blocks re-entrant transitions.
+    private var transitioning = false
 
     init(item: BaseItem, mediaSourceId: String?, start: PlaybackStart, client: JellyfinClient, preferences: Preferences,
          capabilities: DeviceCapabilities, images: ImagePipeline) {
@@ -134,9 +137,10 @@ final class PlaybackCoordinator: Identifiable {
     private func prepare(startPosition: TimeInterval?, overrideAudio: Int?, overrideSubtitle: Int?, forcedRoute: PlaybackRoute? = nil) async {
         phase = .preparing
         do {
-            // 1. Make sure we have media sources.
-            if item.mediaSources == nil || (item.mediaSources ?? []).isEmpty || item.trickplay == nil {
+            // 1. Make sure we have media sources, chapters and trickplay info (one full fetch per item).
+            if !loadedFullItem {
                 item = try await client.item(id: item.id)
+                loadedFullItem = true
             }
             guard let source = item.mediaSource(id: mediaSourceId) else {
                 throw FoyerError(.videoLoadFailed, detail: "Item \(item.id) has no media sources")
@@ -239,6 +243,7 @@ final class PlaybackCoordinator: Identifiable {
             engine.updateTrackMenus(audio: audioTracks, subtitles: subtitleTracks, selectedAudio: selectedAudioIndex, selectedSubtitle: selectedSubtitleIndex)
             phase = .ready
             isSwitchingEngine = false
+            transitioning = false
             UIApplication.shared.isIdleTimerDisabled = true
 
             // 8. Subtitles rendered by Foyer (native engine, text tracks).
@@ -252,6 +257,8 @@ final class PlaybackCoordinator: Identifiable {
         } catch {
             let wrapped = FoyerError.wrap(error)
             Log.error(.playback, "Preparation failed: \(wrapped)")
+            isSwitchingEngine = false
+            transitioning = false
             phase = .failed(wrapped.kind == .unknown ? FoyerError(.videoLoadFailed, detail: wrapped.detail) : wrapped)
         }
     }
@@ -370,7 +377,9 @@ final class PlaybackCoordinator: Identifiable {
     }
 
     private func attemptFallback(after error: FoyerError) {
+        guard !transitioning else { return }
         guard let next = fallbackRoutes.first(where: { !attemptedRoutes.contains($0) }) else {
+            isSwitchingEngine = false
             phase = .failed(error)
             Task { await reporter.stop(position: currentTime, failed: true) }
             return
@@ -378,6 +387,7 @@ final class PlaybackCoordinator: Identifiable {
         Log.warning(.playback, "Route \(decision?.route.rawValue ?? "?") failed (\(error)); trying \(next.rawValue)")
         let position = max(currentTime, 0)
         isSwitchingEngine = true
+        transitioning = true
         Task {
             await reporter.stop(position: position, failed: false)
             didReportStart = false
@@ -494,10 +504,12 @@ final class PlaybackCoordinator: Identifiable {
     }
 
     func playNext(_ next: BaseItem? = nil) {
-        guard let next = next ?? nextEpisode else { return }
+        guard !transitioning, let next = next ?? nextEpisode else { return }
+        transitioning = true
         Log.info(.playback, "Playing next episode \(next.episodeLabel ?? next.id)")
         let position = currentTime
         rememberAudioLanguage()
+        engine?.pause()
         Task {
             await reporter.stop(position: position)
             resetForNewItem(next)
@@ -506,8 +518,13 @@ final class PlaybackCoordinator: Identifiable {
     }
 
     func playPrevious() {
+        guard !transitioning else { return }
+        transitioning = true
         Task {
-            guard let previous = await NextEpisodeResolver.previous(before: item, client: client) else { return }
+            guard let previous = await NextEpisodeResolver.previous(before: item, client: client) else {
+                transitioning = false
+                return
+            }
             let position = currentTime
             await reporter.stop(position: position)
             resetForNewItem(previous)
@@ -517,6 +534,7 @@ final class PlaybackCoordinator: Identifiable {
 
     private func resetForNewItem(_ next: BaseItem) {
         item = next
+        loadedFullItem = false
         mediaSourceId = nil
         start = .automatic
         segments = []
@@ -538,7 +556,7 @@ final class PlaybackCoordinator: Identifiable {
     }
 
     func selectAudio(_ track: PlayerTrack) {
-        guard let index = track.streamIndex, index != selectedAudioIndex else { return }
+        guard !transitioning, let index = track.streamIndex, index != selectedAudioIndex else { return }
         if let engine, engine.selectAudio(streamIndex: index) {
             selectedAudioIndex = index
             reporter.updateTracks(audio: selectedAudioIndex, subtitle: selectedSubtitleIndex)
@@ -551,7 +569,7 @@ final class PlaybackCoordinator: Identifiable {
 
     func selectSubtitle(_ track: PlayerTrack) {
         let index = track.streamIndex
-        guard index != selectedSubtitleIndex else { return }
+        guard !transitioning, index != selectedSubtitleIndex else { return }
         guard let engine, let source = serverSource else { return }
         let stream = source.stream(index: index)
         let needsOtherEngine = (stream?.isBitmapSubtitle ?? false) && engine.kind == .native
@@ -570,6 +588,7 @@ final class PlaybackCoordinator: Identifiable {
     private func reload(audio: Int?, subtitle: Int?) {
         let position = currentTime
         isSwitchingEngine = true
+        transitioning = true
         Log.info(.playback, "Reloading at \(position.clockString) for audio #\(audio.map(String.init) ?? "-") / subtitle #\(subtitle.map(String.init) ?? "off")")
         Task {
             reporter.flush()
@@ -661,7 +680,7 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
     }
 
     func engineDidReachEnd(_ engine: any PlaybackEngine) {
-        guard engine === self.engine else { return }
+        guard engine === self.engine, !transitioning else { return }
         Log.info(.playback, "Reached end of '\(item.displayTitle)'")
         if let next = nextEpisode, preferences.autoPlayNextEpisode, !countdownCancelled {
             playNext(next)

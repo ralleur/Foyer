@@ -96,10 +96,7 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
         guard let controller else { return }
         var options: [String] = []
         if request.startPosition > 1 { options.append("start=\(Int(request.startPosition))") }
-        if let audio = request.audioStreamIndex, let track = request.mediaSource.stream(index: audio) {
-            // mpv audio ids are 1-based within the audio track list; resolved precisely after FILE_LOADED.
-            _ = track
-        }
+        // Audio/subtitle tracks are selected after FILE_LOADED, when mpv's track list (with ff-index) exists.
         options.append("pause=no")
         options.append("sid=no")
         let optionString = options.joined(separator: ",")

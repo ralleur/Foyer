@@ -10,13 +10,19 @@ final class FixtureTransport: HTTPTransport, @unchecked Sendable {
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let path = request.url?.path ?? "/"
         let method = request.httpMethod ?? "GET"
-        lock.lock(); log.append("\(method) \(path)"); lock.unlock()
+        record("\(method) \(path)")
         let (status, body) = respond(method: method, path: path, query: request.url?.query ?? "")
         let url = request.url ?? URL(string: "https://uitest.local")!
         guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"]) else {
             throw URLError(.badServerResponse)
         }
         return (body, response)
+    }
+
+    private func record(_ line: String) {
+        lock.lock()
+        log.append(line)
+        lock.unlock()
     }
 
     private func fixture(_ name: String) -> Data? {

@@ -403,7 +403,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         item.identifier = identifier
         item.value = value as NSString
         item.extendedLanguageTag = "und"
-        return item.copy() as! AVMetadataItem
+        return item
     }
 
     private func chapterGroups(for request: EngineLoadRequest) -> [AVNavigationMarkersGroup] {

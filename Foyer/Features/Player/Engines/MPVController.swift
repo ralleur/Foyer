@@ -325,14 +325,8 @@ final class MPVController: @unchecked Sendable {
     }
 
     static var versionString: String {
-        if let handle = mpv_create() {
-            defer { mpv_terminate_destroy(handle) }
-            if let v = mpv_get_property_string(handle, "mpv-version") {
-                defer { mpv_free(v) }
-                return String(cString: v)
-            }
-        }
-        return "libmpv"
+        let api = mpv_client_api_version()
+        return "libmpv API \(api >> 16).\(api & 0xFFFF)"
     }
 }
 #endif

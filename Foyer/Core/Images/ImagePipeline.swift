@@ -34,36 +34,41 @@ final class ImagePipeline: @unchecked Sendable {
         if let cached = memory.object(forKey: key as NSString) {
             return cached
         }
-        let task: Task<UIImage, Error> = {
-            lock.lock()
-            defer { lock.unlock() }
-            if let existing = inflight[key] { return existing }
-            let created = Task<UIImage, Error>(priority: .userInitiated) { [session, authorizationHeaderProvider] in
-                var request = URLRequest(url: url)
-                if let authorizationHeaderProvider, let header = await authorizationHeaderProvider() {
-                    request.setValue(header, forHTTPHeaderField: "Authorization")
-                }
-                let (data, response) = try await session.data(for: request)
-                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                    throw FoyerError(.notFound, detail: "Image HTTP \(http.statusCode)")
-                }
-                try Task.checkCancellation()
-                guard let image = ImagePipeline.downsample(data, to: targetSize) else {
-                    throw FoyerError(.unknown, detail: "Image decode failed")
-                }
-                return image
-            }
-            inflight[key] = created
-            return created
-        }()
-        defer {
-            lock.lock()
-            inflight[key] = nil
-            lock.unlock()
-        }
+        let task = loadTask(for: url, key: key, targetSize: targetSize)
+        defer { finishInflight(key) }
         let image = try await task.value
         memory.setObject(image, forKey: key as NSString, cost: Self.cost(of: image))
         return image
+    }
+
+    /// Returns the in-flight task for this key or starts one. Synchronous so the lock never spans an await.
+    private func loadTask(for url: URL, key: String, targetSize: CGSize) -> Task<UIImage, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        if let existing = inflight[key] { return existing }
+        let created = Task<UIImage, Error>(priority: .userInitiated) { [session, authorizationHeaderProvider] in
+            var request = URLRequest(url: url)
+            if let authorizationHeaderProvider, let header = await authorizationHeaderProvider() {
+                request.setValue(header, forHTTPHeaderField: "Authorization")
+            }
+            let (data, response) = try await session.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw FoyerError(.notFound, detail: "Image HTTP \(http.statusCode)")
+            }
+            try Task.checkCancellation()
+            guard let image = ImagePipeline.downsample(data, to: targetSize) else {
+                throw FoyerError(.unknown, detail: "Image decode failed")
+            }
+            return image
+        }
+        inflight[key] = created
+        return created
+    }
+
+    private func finishInflight(_ key: String) {
+        lock.lock()
+        inflight[key] = nil
+        lock.unlock()
     }
 
     func cachedImage(for url: URL, targetSize: CGSize) -> UIImage? {
