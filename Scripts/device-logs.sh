@@ -1,8 +1,8 @@
 #!/bin/bash
-# Pulls Foyer's log file off a paired Apple TV (development builds) and prints the tail.
+# Pulls Vela's log file off a paired Apple TV (development builds) and prints the tail.
 #   Scripts/device-logs.sh                 # first paired Apple TV, last 80 lines
 #   Scripts/device-logs.sh Wohnzimmer 300  # by device name, last 300 lines
-# Files land in build/device-logs/ (foyer.log, foyer.log.1 = previous rotation).
+# Files land in build/device-logs/ (vela.log, vela.log.1 = previous rotation).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NAME="${1:-}"
@@ -19,11 +19,11 @@ for x in devs:
         print(x['identifier']); break
 ")
 [ -n "$UDID" ] || { echo "No paired physical Apple TV found (xcrun devicectl manage pair --device <name>)." >&2; exit 1; }
-for f in foyer.log.1 foyer.log; do
+for f in vela.log.1 vela.log; do
   [ -f "${OUT:?}/${f:?}" ] && mv "${OUT:?}/${f:?}" "${OUT:?}/${f:?}.previous"
-  xcrun devicectl device copy from --device "$UDID" --domain-type appDataContainer --domain-identifier com.ralleur.foyer \
+  xcrun devicectl device copy from --device "$UDID" --domain-type appDataContainer --domain-identifier com.ralleur.vela \
     --source "Library/Caches/Logs/$f" --destination "$OUT/$f" >/dev/null 2>&1 || true
 done
-[ -f "$OUT/foyer.log" ] || { echo "No log file on the device yet (the app writes Library/Caches/Logs/foyer.log after its first launch)." >&2; exit 1; }
-echo "== $OUT/foyer.log ($(wc -l < "$OUT/foyer.log" | tr -d ' ') lines$( [ -f "$OUT/foyer.log.1" ] && echo ", plus foyer.log.1" ))"
-tail -n "$LINES" "$OUT/foyer.log"
+[ -f "$OUT/vela.log" ] || { echo "No log file on the device yet (the app writes Library/Caches/Logs/vela.log after its first launch)." >&2; exit 1; }
+echo "== $OUT/vela.log ($(wc -l < "$OUT/vela.log" | tr -d ' ') lines$( [ -f "$OUT/vela.log.1" ] && echo ", plus vela.log.1" ))"
+tail -n "$LINES" "$OUT/vela.log"

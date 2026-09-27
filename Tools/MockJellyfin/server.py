@@ -2,7 +2,7 @@
 """
 Mock Jellyfin server for end-to-end playback testing without a real server.
 
-It speaks the subset of the Jellyfin 10.9+ API that Foyer uses, serves real media
+It speaks the subset of the Jellyfin 10.9+ API that Vela uses, serves real media
 files (with HTTP Range support, on-demand subtitle extraction and a small HLS
 "transcoder" built on ffmpeg) and keeps watch state in memory, so Continue Watching,
 Next Up, resume and the fallback chain can be exercised for real in the simulator.
@@ -31,12 +31,12 @@ from urllib.parse import parse_qs, urlparse
 TICKS = 10_000_000
 SERVER_ID = "f0e1d2c3b4a5968778695a4b3c2d1e0f"
 USER_ID = "0123456789abcdef0123456789abcdef"
-TOKEN = "foyer-mock-token"
+TOKEN = "vela-mock-token"
 MEDIA_EXT = (".mkv", ".mp4", ".mov", ".m4v", ".ts", ".webm", ".avi")
 
 # Metadata the file system cannot tell us. Keyed by file stem.
 EXTRA = {
-    "Aurora (2024)": dict(overview="H.264 in MP4 with two AAC tracks and external German/English SRT files. Expected: native direct play, subtitles rendered by Foyer.", genres=["Drama"], rating="PG-13", community=7.8),
+    "Aurora (2024)": dict(overview="H.264 in MP4 with two AAC tracks and external German/English SRT files. Expected: native direct play, subtitles rendered by Vela.", genres=["Drama"], rating="PG-13", community=7.8),
     "Boreal (2023)": dict(overview="HEVC in MKV with Dolby Digital 5.1 (German), AAC (English), forced and full German SRT, English ASS and chapters. Expected: advanced direct play.", genres=["Thriller"], rating="R", community=8.2, resume_seconds=24),
     "Cascade (2022)": dict(overview="HEVC in MKV with DTS 5.1, TrueHD 5.1 and FLAC. Expected: advanced direct play, lossless audio decoded locally to PCM.", genres=["Action"], rating="PG", community=6.9),
     "Dawn HDR (2021)": dict(overview="HEVC Main 10 HDR10 in MKV with E-AC-3 5.1. Expected: system player after a server remux to keep HDR output.", genres=["Science Fiction"], rating="PG-13", community=8.9),
@@ -233,7 +233,7 @@ class Library:
                 "DateCreated": iso(now - timedelta(days=n)), "RunTimeTicks": source["RunTimeTicks"],
                 "OfficialRating": extra.get("rating"), "CommunityRating": extra.get("community"),
                 "Overview": extra.get("overview"), "Genres": extra.get("genres", []), "Taglines": [],
-                "Studios": [{"Name": "Foyer Test Studio", "Id": item_id("studio")}],
+                "Studios": [{"Name": "Vela Test Studio", "Id": item_id("studio")}],
                 "People": [{"Name": "Test Actor", "Id": item_id("person1"), "Role": "Lead", "Type": "Actor"},
                            {"Name": "Test Director", "Id": item_id("person2"), "Role": "Director", "Type": "Director"}],
                 "Container": source["Container"], "Width": video and video.get("Width"), "Height": video and video.get("Height"),
@@ -484,7 +484,7 @@ class Transcoder:
     def __init__(self):
         self.sessions = {}
         self.lock = threading.Lock()
-        self.tmp = tempfile.mkdtemp(prefix="foyer-mock-hls-")
+        self.tmp = tempfile.mkdtemp(prefix="vela-mock-hls-")
 
     def start(self, session_id: str, path: str, video_codec: str, audio_ordinal: int, copy_video: bool, copy_audio: bool):
         with self.lock:
@@ -688,7 +688,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # Anonymous endpoints
         if lower == "/system/info/public":
-            self.send_json({"LocalAddress": f"http://{self.headers.get('Host')}", "ServerName": "Foyer Mock", "Version": "10.10.7",
+            self.send_json({"LocalAddress": f"http://{self.headers.get('Host')}", "ServerName": "Vela Mock", "Version": "10.10.7",
                             "ProductName": "Jellyfin Server", "OperatingSystem": "", "Id": SERVER_ID, "StartupWizardCompleted": True})
             return 200
         if lower == "/users/public":
@@ -866,7 +866,7 @@ class Handler(BaseHTTPRequestHandler):
             audio = audio_streams[ordinal] if audio_streams else {}
             copy_video = bool(body.get("EnableDirectStream", True)) and video.get("Codec") in ("h264", "hevc")
             copy_audio = copy_video and audio.get("Codec") in ("aac", "ac3", "eac3")
-            params = {"DeviceId": query.get("deviceId", "foyer"), "MediaSourceId": source["Id"], "PlaySessionId": session_id,
+            params = {"DeviceId": query.get("deviceId", "vela"), "MediaSourceId": source["Id"], "PlaySessionId": session_id,
                       "api_key": TOKEN, "VideoCodec": "copy" if copy_video else "h264", "AudioCodec": "copy" if copy_audio else "aac",
                       "AudioStreamIndex": audio_index if audio_index is not None else "", "SubtitleStreamIndex": subtitle_index if subtitle_index is not None else "",
                       "StartTimeTicks": body.get("StartTimeTicks") or 0, "TranscodeReasons": "ContainerNotSupported"}

@@ -13,7 +13,7 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/FoyerCore/.build/
+Packages/VelaCore/.build/
 Package.resolved.bak
 
 # macOS

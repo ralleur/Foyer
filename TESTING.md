@@ -4,20 +4,20 @@
 
 | Layer | Location | Runs on | What it covers |
 | --- | --- | --- | --- |
-| Core unit tests | `Packages/FoyerCore/Tests` | macOS, Linux (`swift test`), Xcode | Jellyfin model decoding (fixtures), date parsing, open enums, URL/auth header construction, legacy endpoint fallbacks, error mapping, log redaction, server address normalisation, items query encoding, the playback decision matrix (42 tests), device profile shape, reconciliation with server responses, track selection rules, SRT/VTT/ASS parsing and timeline lookup, trickplay geometry, skip/countdown/progress/resume policies |
-| App unit tests | `FoyerTests` | tvOS simulator | Integration flows against canned server responses (`FixtureTransport`): server discovery → sign-in → token in Keychain → switch/sign-out; libraries + Home sections + snapshot; library paging and series/season/episode models; `PlaybackCoordinator` with a mock engine (resume position, default German audio + forced subtitles, in-place vs. reload track switches, fallback after engine failure, close/stop) and the start/progress/stop reports the server receives; preferences persistence and defaults, error presentation, image downsampling, subtitle text decoding, track titles |
-| UI tests | `FoyerUITests` | tvOS simulator | Home sections, movie detail (play/watched buttons), series navigation (season chips, episode rows), settings screen. The app is launched with `-uitest`, which installs a fake session and a `FixtureTransport` that serves JSON from `Foyer/Resources/UITestFixtures`; no Jellyfin server is needed |
-| End-to-end tour | `FoyerUITests/MockServerTour` + `Tools/MockJellyfin` | tvOS simulator + local mock server | Real HTTP, real media files, both engines: onboarding → Home → resume in the advanced player (panel, tracks, subtitles, seek) → movie detail → system player → series with skip intro, next-episode countdown and autoplay → DTS/TrueHD track switching → HDR10 remux via HLS → broken file through the fallback chain to the error screen → search and settings. Every step leaves a screenshot |
+| Core unit tests | `Packages/VelaCore/Tests` | macOS, Linux (`swift test`), Xcode | Jellyfin model decoding (fixtures), date parsing, open enums, URL/auth header construction, legacy endpoint fallbacks, error mapping, log redaction, server address normalisation, items query encoding, the playback decision matrix (42 tests), device profile shape, reconciliation with server responses, track selection rules, SRT/VTT/ASS parsing and timeline lookup, trickplay geometry, skip/countdown/progress/resume policies |
+| App unit tests | `VelaTests` | tvOS simulator | Integration flows against canned server responses (`FixtureTransport`): server discovery → sign-in → token in Keychain → switch/sign-out; libraries + Home sections + snapshot; library paging and series/season/episode models; `PlaybackCoordinator` with a mock engine (resume position, default German audio + forced subtitles, in-place vs. reload track switches, fallback after engine failure, close/stop) and the start/progress/stop reports the server receives; preferences persistence and defaults, error presentation, image downsampling, subtitle text decoding, track titles |
+| UI tests | `VelaUITests` | tvOS simulator | Home sections, movie detail (play/watched buttons), series navigation (season chips, episode rows), settings screen. The app is launched with `-uitest`, which installs a fake session and a `FixtureTransport` that serves JSON from `Vela/Resources/UITestFixtures`; no Jellyfin server is needed |
+| End-to-end tour | `VelaUITests/MockServerTour` + `Tools/MockJellyfin` | tvOS simulator + local mock server | Real HTTP, real media files, both engines: onboarding → Home → resume in the advanced player (panel, tracks, subtitles, seek) → movie detail → system player → series with skip intro, next-episode countdown and autoplay → DTS/TrueHD track switching → HDR10 remux via HLS → broken file through the fallback chain to the error screen → search and settings. Every step leaves a screenshot |
 
 ## Running
 
 ```bash
 # Core (no Xcode needed)
-Scripts/test-core.sh                      # = cd Packages/FoyerCore && swift test
+Scripts/test-core.sh                      # = cd Packages/VelaCore && swift test
 
 # App + UI tests on a simulator
-Scripts/test-app.sh                       # FoyerTests only
-xcodebuild -project Foyer.xcodeproj -scheme Foyer \
+Scripts/test-app.sh                       # VelaTests only
+xcodebuild -project Vela.xcodeproj -scheme Vela \
   -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' test
 ```
 
@@ -32,34 +32,34 @@ open build/e2e/shots                      # numbered PNGs per step; server log n
 ## Smoke tour against a real server
 
 ```bash
-FOYER_REAL_SERVER=http://server:8096 FOYER_REAL_USER=name FOYER_REAL_PASSWORD=secret \
-FOYER_CAPABILITIES=appleTV4K Scripts/e2e-real.sh
+VELA_REAL_SERVER=http://server:8096 VELA_REAL_USER=name VELA_REAL_PASSWORD=secret \
+VELA_CAPABILITIES=appleTV4K Scripts/e2e-real.sh
 ```
 
-`FoyerUITests/RealServerTour` signs in with username/password, plays the first Continue Watching item, the first movie and the primary episode of the first series for a few seconds each and saves screenshots; the script polls `/Sessions` meanwhile and writes what the server sees (play method, position, transcoding info) to `build/e2e-real/sessions.log`. Credentials are read from the environment only. `FOYER_CAPABILITIES` maps to the `-capabilities` launch argument (`appleTV4K`, `appleTV4KSDR`, `appleTVHD`; debug builds only) so the simulator decides routes like a real box. The tour touches watch state (a few seconds of progress per item); Jellyfin discards positions under five minutes on stop, a resumed item keeps its new position.
+`VelaUITests/RealServerTour` signs in with username/password, plays the first Continue Watching item, the first movie and the primary episode of the first series for a few seconds each and saves screenshots; the script polls `/Sessions` meanwhile and writes what the server sees (play method, position, transcoding info) to `build/e2e-real/sessions.log`. Credentials are read from the environment only. `VELA_CAPABILITIES` maps to the `-capabilities` launch argument (`appleTV4K`, `appleTV4KSDR`, `appleTVHD`; debug builds only) so the simulator decides routes like a real box. The tour touches watch state (a few seconds of progress per item); Jellyfin discards positions under five minutes on stop, a resumed item keeps its new position.
 
 The mock server can also be used interactively: `Tools/MockJellyfin/server.py --media Tools/MockJellyfin/media` and sign in as user `test` (no password) from a simulator or an Apple TV on the same network. It implements the endpoints listed in JELLYFIN.md, keeps watch state in memory and transcodes/remuxes to HLS with ffmpeg when the app asks for server help. It is a test tool, not a Jellyfin replacement.
 
 ## Status
 
 - Core: 112 tests, all passing (Linux with Swift 6.2.4 and macOS with Xcode 27).
-- App unit tests (`FoyerTests`): 24 tests passing on the tvOS 27 simulator.
-- UI tests (`FoyerUITests`, fixtures): run on the simulator; see the notes in DEVELOPMENT.md for the focus-navigation fixes they triggered.
+- App unit tests (`VelaTests`): 24 tests passing on the tvOS 27 simulator.
+- UI tests (`VelaUITests`, fixtures): run on the simulator; see the notes in DEVELOPMENT.md for the focus-navigation fixes they triggered.
 - End-to-end tour (`Scripts/e2e-mock.sh`): all five `MockServerTour` tests pass on the tvOS 27 simulator (≈ 6 minutes; the app is reinstalled and the mock server restarted for every run so watch state starts from the fixture defaults).
 
 ## On the Apple TV
 
 ```bash
 Scripts/install-device.sh Wohnzimmer            # signed Debug build → install → launch (pair once with xcrun devicectl manage pair)
-Scripts/device-logs.sh Wohnzimmer 200           # pulls Library/Caches/Logs/foyer.log from the app container
+Scripts/device-logs.sh Wohnzimmer 200           # pulls Library/Caches/Logs/vela.log from the app container
 JF_SERVER=http://host:8096 JF_USER=… JF_PW=… Scripts/remote.py sessions      # what the server sees (play method, transcoding)
 JF_SERVER=… JF_USER=… JF_PW=… Scripts/remote.py play "Dune" --position 600   # "Play on" the box through the session socket
 JF_SERVER=… JF_USER=… JF_PW=… Scripts/remote.py watch 120                     # follow position/play method for two minutes
 ```
 
-`remote.py` targets the Foyer session whose device name is "Apple TV" (a real box; simulators report their model) and also sends pause/seek/stop/next, audio/subtitle switches and messages, so the playback matrix below can be driven from the Mac while the TV is watched.
+`remote.py` targets the Vela session whose device name is "Apple TV" (a real box; simulators report their model) and also sends pause/seek/stop/next, audio/subtitle switches and messages, so the playback matrix below can be driven from the Mac while the TV is watched.
 
-Debug-build launch arguments (`xcrun devicectl device process launch … com.ralleur.foyer -- <args>`, `xcrun simctl launch … <args>`):
+Debug-build launch arguments (`xcrun devicectl device process launch … com.ralleur.vela -- <args>`, `xcrun simctl launch … <args>`):
 
 | Argument | Effect |
 | --- | --- |
@@ -88,6 +88,6 @@ Playback matrix (see PLAYBACK.md) on a real Apple TV 4K with an HDR display and 
 
 ## Adding tests
 
-- New Jellyfin fields: add to the fixture JSON under `Packages/FoyerCore/Tests/JellyfinKitTests/Fixtures` and assert in `ModelDecodingTests`.
+- New Jellyfin fields: add to the fixture JSON under `Packages/VelaCore/Tests/JellyfinKitTests/Fixtures` and assert in `ModelDecodingTests`.
 - New decision rules: extend `TestMedia` builders and add a `DecisionEngineTests` case; update the matrix in PLAYBACK.md.
-- New screens: add fixtures to `Foyer/Resources/UITestFixtures`, route them in `FixtureTransport.respond`, and give interactive elements `accessibilityIdentifier`s.
+- New screens: add fixtures to `Vela/Resources/UITestFixtures`, route them in `FixtureTransport.respond`, and give interactive elements `accessibilityIdentifier`s.

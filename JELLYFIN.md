@@ -1,10 +1,10 @@
 # Jellyfin integration
 
-All server communication goes through `JellyfinClient` (FoyerCore/JellyfinKit). Endpoints follow the 10.9+ API and fall back to the pre-10.9 user-scoped routes on 404, so 10.8 servers work too.
+All server communication goes through `JellyfinClient` (VelaCore/JellyfinKit). Endpoints follow the 10.9+ API and fall back to the pre-10.9 user-scoped routes on 404, so 10.8 servers work too.
 
 ## Identification and authentication
 
-- Header on every request: `Authorization: MediaBrowser Client="Foyer", Device="<Apple TV name>", DeviceId="<per-install UUID>", Version="<app version>", Token="<access token>"`. The token is omitted for anonymous calls.
+- Header on every request: `Authorization: MediaBrowser Client="Vela", Device="<Apple TV name>", DeviceId="<per-install UUID>", Version="<app version>", Token="<access token>"`. The token is omitted for anonymous calls.
 - `POST /Users/AuthenticateByName` `{Username, Pw}` → `AccessToken`, `User`, `ServerId`.
 - Quick Connect: `GET /QuickConnect/Enabled`, `POST /QuickConnect/Initiate` (falls back to `GET` on 404/405 for older servers), poll `GET /QuickConnect/Connect?secret=` every 2 s, then `POST /Users/AuthenticateWithQuickConnect` `{Secret}`.
 - `POST /Sessions/Capabilities/Full` after sign-in (`PlayableMediaTypes: Video`, `SupportsMediaControl`, `SupportedCommands: Play, PlayState, DisplayMessage, SetAudioStreamIndex, SetSubtitleStreamIndex`) so the session shows correctly in the dashboard and can be targeted with "Play on".
@@ -67,7 +67,7 @@ The server sends these when a user picks this device in the web UI's "Play on" m
 
 ## User configuration
 
-The server-side user configuration is read (audio/subtitle language, `EnableNextEpisodeAutoPlay`) but Foyer's own preferences take precedence because they encode the requested German/English rules; they are stored per device.
+The server-side user configuration is read (audio/subtitle language, `EnableNextEpisodeAutoPlay`) but Vela's own preferences take precedence because they encode the requested German/English rules; they are stored per device.
 
 ## Compatibility notes
 

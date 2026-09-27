@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds a signed Debug build and installs + launches it on a paired Apple TV (wireless via Xcode pairing).
+# Builds a signed build (Debug by default, CONFIGURATION=Release for everyday use) and installs + launches it on a paired Apple TV.
 #   Scripts/install-device.sh                 # first paired Apple TV
 #   Scripts/install-device.sh "Wohnzimmer"    # by device name (substring)
 # Pair once: Apple TV › Settings › Remotes and Devices › Remote App and Devices, then on the Mac
@@ -9,6 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 NAME="${1:-}"
 DERIVED="${DERIVED_DATA:-build/DerivedData-device}"
+CONFIGURATION="${CONFIGURATION:-Debug}"   # CONFIGURATION=Release for everyday use (faster, no debug arguments)
 UDID=$(xcrun devicectl list devices --json-output /dev/stdout 2>/dev/null | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -24,16 +25,16 @@ echo "Building for device…"
 # in the developer portal on the first build (otherwise: "Your team has no devices…").
 BUILD_LOG="$DERIVED/install-device-build.log"
 mkdir -p "$DERIVED"
-if ! xcodebuild -project Foyer.xcodeproj -scheme Foyer -configuration Debug -destination "platform=tvOS,id=$UDID" \
+if ! xcodebuild -project Vela.xcodeproj -scheme Vela -configuration "$CONFIGURATION" -destination "platform=tvOS,id=$UDID" \
   -derivedDataPath "$DERIVED" -allowProvisioningUpdates -allowProvisioningDeviceRegistration build > "$BUILD_LOG" 2>&1; then
   grep -E "error:|\*\* BUILD" "$BUILD_LOG" | head -20 >&2
   echo "Build failed; full log: $BUILD_LOG" >&2
   exit 1
 fi
 grep -E "warning: .*(provision|sign)|\*\* BUILD" "$BUILD_LOG" || true
-APP="$DERIVED/Build/Products/Debug-appletvos/Foyer.app"
+APP="$DERIVED/Build/Products/$CONFIGURATION-appletvos/Vela.app"
 [ -d "$APP" ] || { echo "Build produced no $APP" >&2; exit 1; }
 echo "Installing on ${UDID}…"
 xcrun devicectl device install app --device "$UDID" "$APP"
-xcrun devicectl device process launch --device "$UDID" com.ralleur.foyer
-echo "Foyer is running on the Apple TV."
+xcrun devicectl device process launch --device "$UDID" com.ralleur.vela
+echo "Vela is running on the Apple TV."

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remote-controls a Foyer session through the Jellyfin server (development helper).
+"""Remote-controls a Vela session through the Jellyfin server (development helper).
 
     JF_SERVER=http://server:8096 JF_USER=name JF_PW=secret Scripts/remote.py sessions
     Scripts/remote.py play "Dune" [--position 900] [--audio 2] [--subtitle -1]
@@ -8,14 +8,14 @@
     Scripts/remote.py audio 2 | subtitle -1
     Scripts/remote.py watch [seconds]          # prints what the server sees every 2 s
 
-Targets the first session whose client is "Foyer" and whose device name equals JF_DEVICE
+Targets the first session whose client is "Vela" and whose device name equals JF_DEVICE
 (default "Apple TV", i.e. a real box; simulators report "Apple TV 4K (…)"), or --session ID.
 Credentials come from the environment only; JF_TOKEN can replace JF_USER/JF_PW.
 """
 import argparse, json, os, sys, time, urllib.parse, urllib.request
 
 BASE = os.environ.get("JF_SERVER", "").rstrip("/")
-AUTH = 'MediaBrowser Client="FoyerRemote", Device="mac", DeviceId="foyer-remote-mac", Version="1.0"'
+AUTH = 'MediaBrowser Client="VelaRemote", Device="mac", DeviceId="vela-remote-mac", Version="1.0"'
 
 
 def call(method, path, body=None, token=None, query=None):
@@ -64,15 +64,15 @@ def main():
         sessions = call("GET", "/Sessions", token=token)
         if args.command == "sessions":
             for s in sessions:
-                if s.get("Client") != "FoyerRemote":
+                if s.get("Client") != "VelaRemote":
                     print(describe(s))
             return
         device = os.environ.get("JF_DEVICE", "Apple TV")
-        candidates = [s for s in sessions if s.get("Client") == "Foyer" and s.get("DeviceName") == device]
+        candidates = [s for s in sessions if s.get("Client") == "Vela" and s.get("DeviceName") == device]
         candidates.sort(key=lambda s: (bool(s.get("SupportsRemoteControl")), s.get("LastActivityDate", "")), reverse=True)
         target = next((s for s in sessions if args.session and s["Id"].startswith(args.session)), None) or (candidates[0] if candidates else None)
         if not target:
-            sys.exit(f"no Foyer session on device '{device}' (see: sessions)")
+            sys.exit(f"no Vela session on device '{device}' (see: sessions)")
         sid = target["Id"]
         if args.command == "watch":
             end = time.time() + float(args.argument or 60)

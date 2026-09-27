@@ -5,7 +5,7 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 ## Environment for the initial build-out
 
 **Problem:** The initial implementation was produced in a Linux container without Xcode or a tvOS SDK.
-**Decision:** Everything that does not need UIKit/AVFoundation lives in a Swift package (`Packages/FoyerCore`) that builds and tests on Linux with Swift 6.2. The tvOS app target was written against documented APIs (availability verified against Apple's documentation index) but could not be compiled in that environment. The Xcode project is generated from `project.yml` with XcodeGen (built from source on Linux) so the project file itself is reproducible.
+**Decision:** Everything that does not need UIKit/AVFoundation lives in a Swift package (`Packages/VelaCore`) that builds and tests on Linux with Swift 6.2. The tvOS app target was written against documented APIs (availability verified against Apple's documentation index) but could not be compiled in that environment. The Xcode project is generated from `project.yml` with XcodeGen (built from source on Linux) so the project file itself is reproducible.
 **Consequence:** The first `xcodebuild` on a Mac surfaced a handful of compile issues in the app target (see "First local build" below); the core logic (Jellyfin client, decision engine, track selection, subtitle parsing, policies) was already covered by 103 passing tests.
 
 ## Playback engines
@@ -22,7 +22,7 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 ## Subtitles without server work
 
 **Problem:** Jellyfin burns in subtitles ("Preparing subtitles…") whenever the client cannot handle them.
-**Decision:** Text subtitles (SRT/ASS/VTT) on the native engine are fetched as external streams and rendered by Foyer's own overlay (SRT/VTT/ASS parsers live in the core package); mpv renders everything itself including PGS/VobSub with libass styling. Selecting a bitmap track while the system player is active transparently switches engines at the current position. Burn-in is only used when no engine can show the track (advanced engine unavailable) and can be disabled.
+**Decision:** Text subtitles (SRT/ASS/VTT) on the native engine are fetched as external streams and rendered by Vela's own overlay (SRT/VTT/ASS parsers live in the core package); mpv renders everything itself including PGS/VobSub with libass styling. Selecting a bitmap track while the system player is active transparently switches engines at the current position. Burn-in is only used when no engine can show the track (advanced engine unavailable) and can be disabled.
 
 ## Device profile per decision
 
@@ -57,7 +57,7 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 ## End-to-end verification without a Jellyfin login
 
 **Problem:** Playback, watch state and the fallback chain can only be trusted after running against real HTTP and real media, but the real server needs credentials the build machine does not have.
-**Decision:** `Tools/MockJellyfin` — a generator for a small synthetic library (H.264/MP4, HEVC/MKV with AC-3, DTS, TrueHD, FLAC, HDR10, SRT/ASS, chapters, a series with intro/credits markers, one deliberately broken file) and a Python server that implements the Jellyfin endpoints Foyer uses, including Range requests, on-demand subtitle extraction, an ffmpeg-based HLS remux/transcode and in-memory watch state. `Scripts/e2e-mock.sh` runs `FoyerUITests/MockServerTour` against it and collects screenshots. Nothing of this ships in the app.
+**Decision:** `Tools/MockJellyfin` — a generator for a small synthetic library (H.264/MP4, HEVC/MKV with AC-3, DTS, TrueHD, FLAC, HDR10, SRT/ASS, chapters, a series with intro/credits markers, one deliberately broken file) and a Python server that implements the Jellyfin endpoints Vela uses, including Range requests, on-demand subtitle extraction, an ffmpeg-based HLS remux/transcode and in-memory watch state. `Scripts/e2e-mock.sh` runs `VelaUITests/MockServerTour` against it and collects screenshots. Nothing of this ships in the app.
 
 ## Bugs found by the end-to-end run
 
@@ -102,13 +102,13 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 
 ## Remote control was advertised, not implemented
 
-**Observation:** The capabilities posted after sign-in claimed `SupportsMediaControl` with `Play`/`PlayState` commands, but the app never opened the session WebSocket, so Jellyfin listed the Apple TV as *not* remote-controllable and "Play on Foyer" in the web UI did nothing. A claim without an implementation.
-**Decision:** `RemoteControlService` keeps `/socket` open while signed in (keep-alive replies, backoff reconnect, suspended in the background) and `AppEnvironment` handles `Play` (item, position, tracks), `Playstate` (pause/seek/stop/next…) and `GeneralCommand` (`DisplayMessage` banner, track switches). Play queues do not exist in Foyer, so `PlayNext`/`PlayLast` are declined with a log line instead of being faked. First device run: the handshake failed with 403 "Token is required" because the token was passed as `api_key` in the query, which 10.11 does not accept on `/socket`; the `Authorization: MediaBrowser … Token=` header works and the server answers with `ForceKeepAlive` right away. The protocol parsing lives in JellyfinKit (`SessionMessage`) and is unit-tested; the app test feeds frames through the dispatcher and checks the presented player. Side effect: device tests can now be driven from the Mac (`Scripts/remote.py`).
+**Observation:** The capabilities posted after sign-in claimed `SupportsMediaControl` with `Play`/`PlayState` commands, but the app never opened the session WebSocket, so Jellyfin listed the Apple TV as *not* remote-controllable and "Play on Vela" in the web UI did nothing. A claim without an implementation.
+**Decision:** `RemoteControlService` keeps `/socket` open while signed in (keep-alive replies, backoff reconnect, suspended in the background) and `AppEnvironment` handles `Play` (item, position, tracks), `Playstate` (pause/seek/stop/next…) and `GeneralCommand` (`DisplayMessage` banner, track switches). Play queues do not exist in Vela, so `PlayNext`/`PlayLast` are declined with a log line instead of being faked. First device run: the handshake failed with 403 "Token is required" because the token was passed as `api_key` in the query, which 10.11 does not accept on `/socket`; the `Authorization: MediaBrowser … Token=` header works and the server answers with `ForceKeepAlive` right away. The protocol parsing lives in JellyfinKit (`SessionMessage`) and is unit-tested; the app test feeds frames through the dispatcher and checks the presented player. Side effect: device tests can now be driven from the Mac (`Scripts/remote.py`).
 
 ## Logs from the device
 
 **Problem:** `log collect` for a paired Apple TV needs `sudo`, Xcode 27's console needs the app started from Xcode, and the debug screen's ring buffer is gone after a crash.
-**Decision:** `FileLogSink` (FoyerFoundation) appends every entry to `Library/Caches/Logs/foyer.log` (2 MB, one rotation, serial queue, failures ignored); `Scripts/device-logs.sh` copies it out of the app container with `xcrun devicectl device copy from --domain-type appDataContainer`, which works for development-signed builds without a debugger.
+**Decision:** `FileLogSink` (VelaFoundation) appends every entry to `Library/Caches/Logs/vela.log` (2 MB, one rotation, serial queue, failures ignored); `Scripts/device-logs.sh` copies it out of the app container with `xcrun devicectl device copy from --domain-type appDataContainer`, which works for development-signed builds without a debugger.
 
 ## First playback on the Apple TV: every HEVC remux failed with CoreMediaErrorDomain 'nope'
 
@@ -139,4 +139,12 @@ A Dolby Vision profile 8 MKV with TrueHD and a German PGS track selected (Englis
 ## Device diagnostics kit
 
 `-play-url <url>` with `-play-seek <s>` (`-play-seek-after <s>`, default 12) plus a logging proxy on the Mac (`proxy.py` in a scratch directory forwarding to Jellyfin) shows exactly which playlists and segments the box requests, with the AppleCoreMedia user agent; `AVPlayerDiagnostics` logs the error chain, tracks and format descriptions. This found the audio-route problem, the profile-7 rejection and the damaged file within an afternoon; keep it.
+
+## Renamed to Vela (2026-09-27)
+
+**Decision:** The app is called **Vela** (it was "Foyer" until today). Product name, bundle identifier (`com.ralleur.vela`), Jellyfin client name, Xcode project/scheme, modules (`VelaCore`, `VelaFoundation`), test targets, scripts, log file (`vela.log`) and docs were renamed in one mechanical pass; only the GitHub repository keeps its old name until it is renamed there. The new bundle identifier is a new app for tvOS: it installs next to the old one and starts signed out, so the old "Foyer" app was removed from the box and the account entered again. Jellyfin lists the box as client "Vela" from now on; the old "Foyer" sessions expire on their own.
+
+## Home-screen tile
+
+**Decision:** The supplied tile (navy background, cream V, blue dot) became the layered tvOS icon: `Back` = solid background colour, `Front` = the logo cut out of the flattened image by colour distance (background grain < 10, the JPEG's black corners ≈ 40, logo > 260 on a 0–441 scale), un-blended at the edges so the parallax layer has clean colours; `Middle` stays empty. The same logo, smaller and centred, fills the Top Shelf images (1920×720, 2320×720). Sizes: 400×240 @1x, 800×480 @2x, 1280×768 for the App Store stack. Generated with Pillow; the flattened source stays out of the repository.
 

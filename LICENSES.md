@@ -1,8 +1,8 @@
 # Licenses
 
-## Foyer
+## Vela
 
-The Foyer source code in this repository is licensed under the **GNU General Public License v3.0** (see `LICENSE`). As the sole copyright holder you may distribute builds under additional terms (for example through the App Store); the GPL only binds recipients of the code. No third-party GPL code is included, so nothing forces the combined work into GPL-incompatible territory.
+The Vela source code in this repository is licensed under the **GNU General Public License v3.0** (see `LICENSE`). As the sole copyright holder you may distribute builds under additional terms (for example through the App Store); the GPL only binds recipients of the code. No third-party GPL code is included, so nothing forces the combined work into GPL-incompatible territory.
 
 ## Third-party dependencies
 
@@ -26,8 +26,8 @@ The Foyer source code in this repository is licensed under the **GNU General Pub
 | ├ uchardet | | MPL 1.1 / GPL 2 / LGPL 2.1 (tri-license, used under LGPL) | subtitle charset detection |
 | ├ GnuTLS, nettle, GMP | | LGPL v2.1+ / LGPL v3 | TLS for FFmpeg |
 | ├ OpenSSL | | Apache 2.0 | TLS |
-| ├ libbluray | | LGPL v2.1+ | (linked by MPVKit; not used by Foyer) |
-| Jellyfin server & API | | GPL-2.0 (server) | Foyer uses only the public HTTP API; no Jellyfin code is included |
+| ├ libbluray | | LGPL v2.1+ | (linked by MPVKit; not used by Vela) |
+| Jellyfin server & API | | GPL-2.0 (server) | Vela uses only the public HTTP API; no Jellyfin code is included |
 | XcodeGen | | MIT | development tool only, not shipped |
 
 The exact component versions are those bundled in MPVKit release 1.0.0 (see the upstream `Package.swift` checksums; Xcode's `Package.resolved` pins the release).

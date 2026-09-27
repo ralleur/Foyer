@@ -11,13 +11,13 @@ Priorities, in order: reliability → picture and sound quality → direct play 
 | Video | H.264 (8-bit ≤ L5.2), HEVC Main/Main 10 (hvc1/dvh1 tag), AV1 (hardware only), MPEG-4 Part 2 | H.264/HEVC via VideoToolbox, AV1/VP9 hardware or software ≤ 1080p, MPEG-2/4, VC-1 |
 | HDR | HDR10, HDR10+, HLG, Dolby Vision P5 and P8 (P7 dual-layer: the server strips RPU/EL and the HDR10 base layer is played) | Tone-mapped to SDR (libplacebo bt.2446a); DV P5 reshaped by libdovi |
 | Audio | AAC, AC-3, E-AC-3 (+Atmos JOC passthrough), ALAC, FLAC, MP3, PCM | Everything FFmpeg decodes (DTS, DTS-HD, TrueHD, FLAC, Opus, Vorbis, …) → multichannel PCM |
-| Subtitles | tx3g embedded (system menu); SRT/ASS/VTT fetched from the server and drawn by Foyer's overlay; bitmap → engine switch | Everything via libass (ASS styling, embedded fonts) and bitmap decoders (PGS, VobSub, DVB) |
-| UI | System transport bar, info panel, chapters, contextual *Skip Intro*, next-episode proposal, custom audio/subtitle menus | Foyer overlay: click for controls, swipe to scrub (trickplay previews), swipe down for panel, skip pill, countdown card, delays, debug HUD |
+| Subtitles | tx3g embedded (system menu); SRT/ASS/VTT fetched from the server and drawn by Vela's overlay; bitmap → engine switch | Everything via libass (ASS styling, embedded fonts) and bitmap decoders (PGS, VobSub, DVB) |
+| UI | System transport bar, info panel, chapters, contextual *Skip Intro*, next-episode proposal, custom audio/subtitle menus | Vela overlay: click for controls, swipe to scrub (trickplay previews), swipe down for panel, skip pill, countdown card, delays, debug HUD |
 | Frame-rate matching | `appliesPreferredDisplayCriteriaAutomatically` | `AVDisplayCriteria(refreshRate:formatDescription:)` (tvOS 17) |
 
 ## Decision tree
 
-Implemented in `PlaybackDecisionEngine.decide` (FoyerCore/PlaybackDecision). Inputs: `MediaSource` (container, video/audio/subtitle streams with codec, profile, bit depth, range type, tag, fps, size), selected audio/subtitle indices (from `TrackSelector`), `DeviceCapabilities`, `PlaybackPreferences`.
+Implemented in `PlaybackDecisionEngine.decide` (VelaCore/PlaybackDecision). Inputs: `MediaSource` (container, video/audio/subtitle streams with codec, profile, bit depth, range type, tag, fps, size), selected audio/subtitle indices (from `TrackSelector`), `DeviceCapabilities`, `PlaybackPreferences`.
 
 ```
 1. Native direct play?      container ∈ MP4/MOV ∧ video ok ∧ audio ok ∧ subtitle text-or-none ∧ (advanced mode ≠ always)
@@ -55,11 +55,11 @@ The advanced engine treats an end-of-file that arrives long before the known dur
 
 `DeviceProfileBuilder` produces one of two Jellyfin `DeviceProfile`s per request:
 
-**Native**: direct-play containers `mp4,m4v` and `mov` with `h264,hevc,(av1),mpeg4` × `aac,ac3,eac3,alac,flac,mp3,pcm_*`; codec profiles restrict H.264 to 8-bit ≤ L5.2 non-interlaced, HEVC to Main/Main 10 with `VideoRangeType ∈ supported set` and `VideoCodecTag ∈ hvc1|dvh1` (**not** required, like Jellyfin's own Safari profile: MKV sources have no tag and must stay remuxable, an `hev1`-tagged MP4 fails the check and is remuxed); `Width ≤ device max`, `VideoFramerate ≤ 60`. Subtitle profiles: text formats `External` (Foyer renders), `mov_text` `Embed`, text formats `Hls`, bitmap formats `Encode` only when burn-in is allowed for this request.
+**Native**: direct-play containers `mp4,m4v` and `mov` with `h264,hevc,(av1),mpeg4` × `aac,ac3,eac3,alac,flac,mp3,pcm_*`; codec profiles restrict H.264 to 8-bit ≤ L5.2 non-interlaced, HEVC to Main/Main 10 with `VideoRangeType ∈ supported set` and `VideoCodecTag ∈ hvc1|dvh1` (**not** required, like Jellyfin's own Safari profile: MKV sources have no tag and must stay remuxable, an `hev1`-tagged MP4 fails the check and is remuxed); `Width ≤ device max`, `VideoFramerate ≤ 60`. Subtitle profiles: text formats `External` (Vela renders), `mov_text` `Embed`, text formats `Hls`, bitmap formats `Encode` only when burn-in is allowed for this request.
 
 **Advanced**: one direct-play profile with every container/video/audio codec FFmpeg handles; codec profiles cap VP9/AV1 software decoding at 1080p (Apple TV HD: 720p); subtitle profiles `Embed` for all formats plus `External` for text.
 
-**Shared transcoding profile**: `hls` + `mp4` container (fMP4), video `hevc,h264` (HEVC first when hardware supports it), audio `eac3,ac3,aac,alac,flac,mp3` (order = server target preference), `MaxAudioChannels` = output channels, `BreakOnNonKeyFrames`, `MinSegments 2`, subtitles not in manifest (Foyer renders external text tracks itself for consistency).
+**Shared transcoding profile**: `hls` + `mp4` container (fMP4), video `hevc,h264` (HEVC first when hardware supports it), audio `eac3,ac3,aac,alac,flac,mp3` (order = server target preference), `MaxAudioChannels` = output channels, `BreakOnNonKeyFrames`, `MinSegments 2`, subtitles not in manifest (Vela renders external text tracks itself for consistency).
 
 ## Audio
 
@@ -105,7 +105,7 @@ Expected route with default settings on an Apple TV 4K with an HDR display (`Dec
 
 | Media | Expected path | Notes |
 | --- | --- | --- |
-| 1080p H.264 + AAC + external SRT (MP4) | Native Direct Play | SRT drawn by Foyer overlay |
+| 1080p H.264 + AAC + external SRT (MP4) | Native Direct Play | SRT drawn by Vela overlay |
 | 1080p H.264 + AC-3 (MP4, container reported as `mov,mp4,m4a,…`) | Native Direct Play | AC-3 passthrough |
 | 4K HEVC SDR (MKV, E-AC-3) | Advanced Direct Play | zero server work |
 | 4K HEVC HDR10 (MKV, E-AC-3) | Direct Stream | HDR kept via remux, audio copied |
