@@ -103,7 +103,7 @@ struct SubtitleCueView: View {
 /// Draws decoded bitmap subtitles (PGS/VobSub) over the system player. The subtitle canvas (usually the
 /// video frame size) is fitted into the overlay like the video itself, so positions match the picture.
 struct BitmapSubtitleView: View {
-    let sourceProvider: () -> BitmapSubtitleSource?
+    let sourceProvider: () -> EmbeddedSubtitleSource?
     let timeProvider: () -> TimeInterval
 
     @State private var frame: BitmapSubtitleFrame?

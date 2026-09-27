@@ -361,7 +361,7 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
     func updateSkipAction(title: String?) {}
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool) {}
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?) {}
-    func setBitmapSubtitle(_ source: BitmapSubtitleSource?) { source?.stop() } // mpv draws PGS/VobSub itself
+    func setBitmapSubtitle(_ source: EmbeddedSubtitleSource?) { source?.stop() } // mpv draws PGS/VobSub itself
 
     /// libass draws at the bottom edge; lift it while the scrubber/panel is showing.
     func setControlsVisible(_ visible: Bool) {

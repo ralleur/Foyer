@@ -38,8 +38,8 @@ final class MockEngine: PlaybackEngine {
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool) {}
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?) {}
     func setControlsVisible(_ visible: Bool) {}
-    var bitmapSubtitles: [BitmapSubtitleSource?] = []
-    func setBitmapSubtitle(_ source: BitmapSubtitleSource?) { bitmapSubtitles.append(source) }
+    var bitmapSubtitles: [EmbeddedSubtitleSource?] = []
+    func setBitmapSubtitle(_ source: EmbeddedSubtitleSource?) { bitmapSubtitles.append(source) }
     func appDidEnterBackground() {}
     func appWillEnterForeground() {}
 

@@ -74,9 +74,13 @@ final class PlaybackCoordinator: Identifiable {
     private var didReportStart = false
     private var externalSubtitles: [ExternalSubtitle] = []
     /// PGS/VobSub decoded from the original file for the native engine (`SubtitleHandling.bitmapOverlay`).
-    private var bitmapSubtitle: BitmapSubtitleSource?
+    private var bitmapSubtitle: EmbeddedSubtitleSource?
     /// Overlay to start once the engine plays: the server reads the same file for its remux and gets the disk first.
     private var pendingBitmapOverlay: (streamIndex: Int, source: MediaSource)?
+    /// Embedded text track read from the original file (native engine), started like the bitmap overlay.
+    private var textSubtitle: EmbeddedSubtitleSource?
+    private var pendingTextSubtitle: (streamIndex: Int, source: MediaSource)?
+    private var textCueVersion = -1
     private var subtitleLoadTask: Task<Void, Never>?
     private let skipPolicy = SkipSegmentPolicy()
     private let countdownPolicy = NextEpisodeCountdownPolicy()
@@ -125,6 +129,7 @@ final class PlaybackCoordinator: Identifiable {
         subtitleLoadTask?.cancel()
         let position = currentTime
         stopBitmapOverlay()
+        stopTextSubtitle()
         cancelAbandonedServerStream()
         let engine = self.engine
         self.engine = nil
@@ -536,6 +541,7 @@ final class PlaybackCoordinator: Identifiable {
         pendingSeek = (clamped, Date())
         engine?.seek(to: clamped)
         bitmapSubtitle?.seek(to: clamped)
+        textSubtitle?.seek(to: clamped)
         currentTime = clamped
     }
 
@@ -618,6 +624,7 @@ final class PlaybackCoordinator: Identifiable {
         selectedAudioIndex = nil
         selectedSubtitleIndex = nil
         stopBitmapOverlay()
+        stopTextSubtitle()
     }
 
     func selectAudio(_ track: PlayerTrack) {
@@ -692,7 +699,7 @@ final class PlaybackCoordinator: Identifiable {
             return
         }
         let stream = source.stream(index: streamIndex)
-        let overlay = BitmapSubtitleSource(url: url, streamIndex: streamIndex, language: stream?.language)
+        let overlay = EmbeddedSubtitleSource(url: url, streamIndex: streamIndex, language: stream?.language)
         bitmapSubtitle = overlay
         overlay.start(at: time)
         engine?.setBitmapSubtitle(overlay)
@@ -717,8 +724,19 @@ final class PlaybackCoordinator: Identifiable {
     private func refreshSubtitleOverlay() {
         subtitleLoadTask?.cancel()
         subtitleTimeline = nil
+        stopTextSubtitle()
         guard engine?.kind == .native, let index = selectedSubtitleIndex,
               let external = externalSubtitles.first(where: { $0.streamIndex == index }) else { return }
+        // Embedded text tracks: read near the playhead from the original file. Downloading them from Jellyfin makes
+        // the server extract every subtitle track from the whole file first (an hour for a 50 GB file on a slow disk).
+        if let source = serverSource, source.stream(index: index)?.isExternal != true {
+            if engineState == .playing || engineState == .paused {
+                startTextSubtitle(streamIndex: index, source: source, at: currentTime)
+            } else {
+                pendingTextSubtitle = (index, source)
+            }
+            return
+        }
         subtitleLoadTask = Task { [weak self] in
             do {
                 let timeline = try await SubtitleLoader.shared.timeline(for: external.url, format: external.format)
@@ -729,6 +747,31 @@ final class PlaybackCoordinator: Identifiable {
                 Log.warning(.subtitle, "Subtitle load failed: \(VelaError.wrap(error))")
             }
         }
+    }
+
+    private func startTextSubtitle(streamIndex: Int, source: MediaSource, at time: TimeInterval) {
+        stopTextSubtitle()
+        guard let url = client.directStreamURL(itemId: item.id, mediaSourceId: source.id, playSessionId: nil, eTag: source.eTag, container: source.container) else {
+            Log.warning(.subtitle, "Embedded subtitles: no direct URL for the original file")
+            return
+        }
+        let reader = EmbeddedSubtitleSource(url: url, streamIndex: streamIndex, language: source.stream(index: streamIndex)?.language)
+        textSubtitle = reader
+        textCueVersion = -1
+        reader.start(at: time)
+        Log.info(.subtitle, "Text subtitles #\(streamIndex) read from the original file near the playhead")
+    }
+
+    private func startPendingTextSubtitle() {
+        guard let pending = pendingTextSubtitle else { return }
+        pendingTextSubtitle = nil
+        startTextSubtitle(streamIndex: pending.streamIndex, source: pending.source, at: engine?.currentTime ?? currentTime)
+    }
+
+    private func stopTextSubtitle() {
+        pendingTextSubtitle = nil
+        textSubtitle?.stop()
+        textSubtitle = nil
     }
 
     // MARK: App lifecycle
@@ -761,6 +804,7 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
         switch state {
         case .playing:
             startPendingBitmapOverlay()
+            startPendingTextSubtitle()
             if !didReportStart, let decision, let source = serverSource {
                 didReportStart = true
                 reporter.start(context: .init(itemId: item.id, mediaSourceId: source.id, playSessionId: playSessionId,
@@ -786,6 +830,13 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
     func engine(_ engine: any PlaybackEngine, didUpdateTime time: TimeInterval, duration: TimeInterval) {
         guard engine === self.engine else { return }
         bitmapSubtitle?.update(playhead: time)
+        if let textSubtitle {
+            textSubtitle.update(playhead: time)
+            if textSubtitle.textCueVersion != textCueVersion {
+                textCueVersion = textSubtitle.textCueVersion
+                subtitleTimeline = textSubtitle.textTimeline
+            }
+        }
         if let pending = pendingSeek {
             if abs(time - pending.target) <= 3 || Date().timeIntervalSince(pending.issued) > 15 {
                 pendingSeek = nil

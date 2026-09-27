@@ -28,7 +28,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     private var didStartPlaying = false
     private var subtitleOverlay: UIHostingController<NativeSubtitleOverlay>?
     /// PGS/VobSub decoded from the original file by the coordinator; drawn by `BitmapSubtitleView`.
-    private(set) var bitmapSubtitle: BitmapSubtitleSource?
+    private(set) var bitmapSubtitle: EmbeddedSubtitleSource?
     private var skipTitle: String?
     private var audioMenuTracks: [PlayerTrack] = []
     private var subtitleMenuTracks: [PlayerTrack] = []
@@ -571,7 +571,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     func setControlsVisible(_ visible: Bool) {} // the system transport bar is handled via its delegate callback
 
-    func setBitmapSubtitle(_ source: BitmapSubtitleSource?) {
+    func setBitmapSubtitle(_ source: EmbeddedSubtitleSource?) {
         if bitmapSubtitle !== source { bitmapSubtitle?.stop() }
         bitmapSubtitle = source
         subtitleOverlay?.rootView = NativeSubtitleOverlay(engine: self)

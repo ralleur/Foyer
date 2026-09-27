@@ -80,6 +80,18 @@ final class SubtitleParserTests: XCTestCase {
         XCTAssertEqual(cues[1].text, "Italic normal space")
     }
 
+    func testDecoderEventsFromEmbeddedTracks() {
+        // What FFmpeg's decoders return for embedded SubRip/ASS packets.
+        let srt = SubtitleParser.cue(fromDecoderEvent: "12,0,Default,,0,0,0,,{\\i1}Where were you?{\\i0}\\NAt home.", id: 7, start: 61.5, end: 63)
+        XCTAssertEqual(srt?.text, "Where were you?\nAt home.")
+        XCTAssertEqual(srt?.start, 61.5)
+        XCTAssertEqual(srt?.end, 63)
+        XCTAssertEqual(SubtitleParser.cue(fromDecoderEvent: "3,0,Default,,0,0,0,,{\\an8}Sign, with a comma", id: 1, start: 0, end: 1)?.text, "Sign, with a comma")
+        XCTAssertEqual(SubtitleParser.cue(fromDecoderEvent: "3,0,Default,,0,0,0,,{\\an8}Top", id: 1, start: 0, end: 1)?.isTop, true)
+        XCTAssertNil(SubtitleParser.cue(fromDecoderEvent: "4,0,Default,,0,0,0,,{\\p1}m 0 0 l 10 10{\\p0}", id: 1, start: 0, end: 1))
+        XCTAssertNil(SubtitleParser.cue(fromDecoderEvent: "5,0,Default,,0,0,0,,", id: 1, start: 0, end: 1))
+    }
+
     func testFormatDetectionWithHint() {
         let cues = SubtitleParser.parse("1\n00:00:01,000 --> 00:00:02,000\nX", format: .webvtt)
         XCTAssertEqual(cues.count, 1)

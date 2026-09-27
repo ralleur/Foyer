@@ -179,7 +179,7 @@ protocol PlaybackEngine: AnyObject {
     /// Called when Vela's own controls cover the lower part of the picture (subtitles move up).
     func setControlsVisible(_ visible: Bool)
     /// Bitmap subtitles decoded by Vela from the original file, drawn over the picture (nil = none).
-    func setBitmapSubtitle(_ source: BitmapSubtitleSource?)
+    func setBitmapSubtitle(_ source: EmbeddedSubtitleSource?)
     func appDidEnterBackground()
     func appWillEnterForeground()
 }

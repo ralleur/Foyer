@@ -3,7 +3,7 @@ import XCTest
 
 /// Decodes the synthetic PGS track in `Fixtures/pgs-sample.mkv` (two white bars, 1–3 s and 4–6 s on a
 /// 1920×1080 canvas; made by `Scripts/make-pgs-fixture.py`) through the FFmpeg-backed source.
-final class BitmapSubtitleSourceTests: XCTestCase {
+final class EmbeddedSubtitleSourceTests: XCTestCase {
     private func waitUntil(_ condition: @escaping () -> Bool, timeout: TimeInterval = 10) async throws {
         let deadline = Date().addingTimeInterval(timeout)
         while !condition(), Date() < deadline { try await Task.sleep(for: .milliseconds(25)) }
@@ -11,7 +11,7 @@ final class BitmapSubtitleSourceTests: XCTestCase {
 
     func testDecodesSyntheticPGSTrack() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "pgs-sample", withExtension: "mkv"))
-        let source = BitmapSubtitleSource(url: url, streamIndex: 1, language: "ger")
+        let source = EmbeddedSubtitleSource(url: url, streamIndex: 1, language: "ger")
         source.start(at: 0)
         defer { source.stop() }
         try await waitUntil { source.frame(at: 5) != nil || source.failure != nil }
@@ -41,7 +41,7 @@ final class BitmapSubtitleSourceTests: XCTestCase {
     /// The same bars re-encoded as DVD subtitles (VobSub): palette comes from the container's codec extradata.
     func testDecodesVobSubTrack() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "dvdsub-sample", withExtension: "mkv"))
-        let source = BitmapSubtitleSource(url: url, streamIndex: 1, language: "ger")
+        let source = EmbeddedSubtitleSource(url: url, streamIndex: 1, language: "ger")
         source.start(at: 0)
         defer { source.stop() }
         try await waitUntil { source.frame(at: 1.5) != nil || source.failure != nil }
@@ -57,10 +57,31 @@ final class BitmapSubtitleSourceTests: XCTestCase {
 
     func testMissingStreamReportsFailure() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "pgs-sample", withExtension: "mkv"))
-        let source = BitmapSubtitleSource(url: url, streamIndex: 7, language: nil)
+        let source = EmbeddedSubtitleSource(url: url, streamIndex: 7, language: nil)
         source.start(at: 0)
         defer { source.stop() }
         try await waitUntil { source.failure != nil }
         XCTAssertNotNil(source.failure)
+    }
+    /// `Fixtures/srt-sample.mkv`: an embedded SubRip track with "First line" (1–3 s) and "<i>Second</i>, with a
+    /// comma" (4–6 s). Text tracks become cues, read from the file instead of a server-side extraction.
+    func testDecodesEmbeddedTextTrackIntoCues() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "srt-sample", withExtension: "mkv"))
+        let source = EmbeddedSubtitleSource(url: url, streamIndex: 1, language: "eng")
+        source.start(at: 0)
+        defer { source.stop() }
+        try await waitUntil { source.textCueVersion >= 2 || source.failure != nil }
+        XCTAssertNil(source.failure)
+        let timeline = source.textTimeline
+        XCTAssertEqual(timeline.cues.map(\.text), ["First line", "Second, with a comma"])
+        XCTAssertEqual(timeline.activeCues(at: 2).map(\.text), ["First line"])
+        XCTAssertEqual(timeline.activeCues(at: 5).map(\.text), ["Second, with a comma"])
+        XCTAssertTrue(timeline.activeCues(at: 3.5).isEmpty)
+        XCTAssertNil(source.frame(at: 2), "text tracks produce no bitmap frames")
+
+        // A seek back re-reads the file; cues are not duplicated.
+        source.seek(to: 0)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(source.textTimeline.cues.count, 2)
     }
 }

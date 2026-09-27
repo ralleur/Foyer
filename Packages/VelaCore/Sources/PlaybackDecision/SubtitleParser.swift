@@ -117,22 +117,32 @@ public enum SubtitleParser {
             guard let startIdx = columns.firstIndex(of: "start"), let endIdx = columns.firstIndex(of: "end"),
                   let textIdx = columns.firstIndex(of: "text"), fields.count > max(startIdx, endIdx), fields.count > textIdx else { continue }
             guard let start = parseASSTime(fields[startIdx]), let end = parseASSTime(fields[endIdx]) else { continue }
-            var body = fields[textIdx...].joined(separator: ",")
-            // Skip vector drawings.
-            if body.contains("\\p1") || body.contains("\\p2") || body.contains("\\p4") { continue }
-            var top = false
-            if let range = body.range(of: #"\\an?[789]"#, options: .regularExpression) {
-                _ = range
-                top = true
-            }
-            if body.range(of: #"\\a[5-7]\b"#, options: .regularExpression) != nil { top = true }
-            body = body.replacingOccurrences(of: #"\{[^}]*\}"#, with: "", options: .regularExpression)
-            body = body.replacingOccurrences(of: "\\N", with: "\n").replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\h", with: " ")
-            let (clean, tagTop) = cleanText(body)
-            guard !clean.isEmpty else { continue }
-            cues.append(SubtitleCue(id: cues.count, start: start, end: end, text: clean, isTop: top || tagTop))
+            guard let (clean, top) = cleanASSText(fields[textIdx...].joined(separator: ",")) else { continue }
+            cues.append(SubtitleCue(id: cues.count, start: start, end: end, text: clean, isTop: top))
         }
         return cues.sorted { $0.start < $1.start }
+    }
+
+    /// One event as FFmpeg's subtitle decoders hand it out for embedded text tracks (SubRip and WebVTT are
+    /// converted to ASS too): `ReadOrder,Layer,Style,Name,MarginL,MarginR,MarginV,Effect,Text`.
+    public static func cue(fromDecoderEvent event: String, id: Int, start: TimeInterval, end: TimeInterval) -> SubtitleCue? {
+        let fields = event.split(separator: ",", maxSplits: 8, omittingEmptySubsequences: false)
+        let body = fields.count == 9 ? String(fields[8]) : event // plain text from decoders that do not emit ASS
+        guard let (clean, top) = cleanASSText(body) else { return nil }
+        return SubtitleCue(id: id, start: start, end: end, text: clean, isTop: top)
+    }
+
+    /// ASS dialogue text → display text; nil for drawings and empty events.
+    static func cleanASSText(_ raw: String) -> (String, Bool)? {
+        var body = raw
+        // Skip vector drawings.
+        if body.contains("\\p1") || body.contains("\\p2") || body.contains("\\p4") { return nil }
+        var top = body.range(of: #"\\an?[789]"#, options: .regularExpression) != nil
+        if body.range(of: #"\\a[5-7]\b"#, options: .regularExpression) != nil { top = true }
+        body = body.replacingOccurrences(of: #"\{[^}]*\}"#, with: "", options: .regularExpression)
+        body = body.replacingOccurrences(of: "\\N", with: "\n").replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\h", with: " ")
+        let (clean, tagTop) = cleanText(body)
+        return clean.isEmpty ? nil : (clean, top || tagTop)
     }
 
     // MARK: Helpers
