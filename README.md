@@ -23,7 +23,18 @@ Scripts/bootstrap.sh          # installs XcodeGen if needed and regenerates Foye
 open Foyer.xcodeproj
 ```
 
-In Xcode: select the *Foyer* scheme, set your team under *Signing & Capabilities*, pick an Apple TV (or a tvOS simulator) and run. The first build resolves two Swift packages: the local `FoyerCore` and [MPVKit](https://github.com/mpvkit/MPVKit) (binary xcframeworks, ~200 MB download once).
+In Xcode: select the *Foyer* scheme, pick an Apple TV (or a tvOS simulator) and run. The project is set up for automatic signing with the owner's team (`DEVELOPMENT_TEAM` in `project.yml`); Xcode needs that Apple ID under *Settings › Accounts* to create the tvOS provisioning profile on first build.
+
+## Installing on an Apple TV
+
+1. On the Apple TV: *Settings › Remotes and Devices › Remote App and Devices*. In Xcode: *Window › Devices and Simulators*, select the Apple TV, *Pair*, enter the code shown on the TV. Pairing works over Wi-Fi; Mac and Apple TV must be on the same network.
+2. Then either run the *Foyer* scheme with the Apple TV as destination, or use the command line:
+
+```bash
+Scripts/install-device.sh            # signed Debug build → install → launch on the paired Apple TV
+```
+
+Development builds installed this way stay valid for a year with a paid developer account. For a build that survives without the Mac, archive the *Foyer* scheme (Release) and distribute through TestFlight. The first build resolves two Swift packages: the local `FoyerCore` and [MPVKit](https://github.com/mpvkit/MPVKit) (binary xcframeworks, ~200 MB download once).
 
 Run the platform-independent tests without Xcode (macOS or Linux):
 

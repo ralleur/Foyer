@@ -22,7 +22,7 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     CODE_SIGN_STYLE: Automatic
     # Set your Apple Developer team here or in Xcode › Signing & Capabilities.
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "M8735KCYG5"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
   configs:
