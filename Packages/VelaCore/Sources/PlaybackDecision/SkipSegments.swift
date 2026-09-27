@@ -82,3 +82,45 @@ public struct NextEpisodeCountdownPolicy: Sendable, Hashable {
         return max(0, mediaDuration - fallbackLeadTime)
     }
 }
+
+/// Intro, recap, credits and preview segments from chapter names ("Intro", "Opening Credits", "Previously on…",
+/// "Abspann", …) for episodes the server has no media segments for. Server segments (Intro Skipper) win per type.
+public enum ChapterSegments {
+    private static let names: [(MediaSegmentType, [String])] = [
+        (.recap, ["recap", "previously", "previously on", "zuvor", "was bisher geschah", "rückblick", "bisher bei"]),
+        (.intro, ["intro", "opening", "opening credits", "opening titles", "title sequence", "main title", "main titles",
+                  "vorspann", "titelsequenz", "op"]),
+        (.outro, ["credits", "end credits", "closing credits", "ending credits", "end titles", "outro", "ending", "ed",
+                  "abspann", "nachspann"]),
+        (.preview, ["preview", "next time", "next episode", "vorschau", "nächstes mal"]),
+    ]
+
+    public static func type(forChapterName raw: String?) -> MediaSegmentType? {
+        guard let raw else { return nil }
+        let name = raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        guard !name.isEmpty else { return nil }
+        for (type, candidates) in names where candidates.contains(where: { name == $0 || name.hasPrefix($0 + " ") }) {
+            return type
+        }
+        return nil
+    }
+
+    /// - Parameter chapters: chapter names with their start times, in any order.
+    public static func segments(chapters: [(name: String?, start: TimeInterval)], duration: TimeInterval) -> [MediaSegment] {
+        let sorted = chapters.sorted { $0.start < $1.start }
+        var result: [MediaSegment] = []
+        for (index, chapter) in sorted.enumerated() {
+            guard let type = type(forChapterName: chapter.name) else { continue }
+            let end = index + 1 < sorted.count ? sorted[index + 1].start : duration
+            guard end > chapter.start else { continue }
+            result.append(MediaSegment(id: "chapter-\(index)", type: type, start: chapter.start, end: end))
+        }
+        return result
+    }
+
+    /// Server segments first; chapter segments only for types the server did not provide.
+    public static func merge(server: [MediaSegment], chapters: [MediaSegment]) -> [MediaSegment] {
+        let known = Set(server.map(\.type))
+        return (server + chapters.filter { !known.contains($0.type) }).sorted { $0.start < $1.start }
+    }
+}

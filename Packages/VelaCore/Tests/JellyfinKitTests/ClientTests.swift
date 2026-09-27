@@ -78,7 +78,7 @@ final class ClientTests: XCTestCase {
         let transcoding = client.transcodingURL(path: "/jellyfin/videos/1/master.m3u8?DeviceId=d&api_key=tok")
         XCTAssertEqual(transcoding?.absoluteString, "https://host.example/jellyfin/videos/1/master.m3u8?DeviceId=d&api_key=tok")
         let plain = client.transcodingURL(path: "/videos/1/master.m3u8?DeviceId=d")
-        XCTAssertEqual(plain?.absoluteString, "https://host.example/jellyfin/videos/1/master.m3u8?DeviceId=d&api_key=tok")
+        XCTAssertEqual(plain?.absoluteString, "https://host.example/jellyfin/videos/1/master.m3u8?DeviceId=d&ApiKey=tok&api_key=tok")
     }
 
     func testMediaURLsCarryToken() throws {
@@ -94,14 +94,14 @@ final class ClientTests: XCTestCase {
         XCTAssertEqual(items["Tag"], "e")
 
         let subtitle = client.subtitleURL(itemId: "i1", mediaSourceId: "ms1", streamIndex: 5, format: "srt")
-        XCTAssertEqual(subtitle?.absoluteString, "https://media.example.com/Videos/i1/ms1/Subtitles/5/0/Stream.srt?api_key=tok")
+        XCTAssertEqual(subtitle?.absoluteString, "https://media.example.com/Videos/i1/ms1/Subtitles/5/0/Stream.srt?ApiKey=tok&api_key=tok")
         let delivered = client.subtitleURL(itemId: "i1", mediaSourceId: "ms1", streamIndex: 5, format: "srt", deliveryUrl: "/Videos/i1/ms1/Subtitles/5/0/Stream.srt?api_key=tok")
         XCTAssertEqual(delivered?.absoluteString, "https://media.example.com/Videos/i1/ms1/Subtitles/5/0/Stream.srt?api_key=tok")
 
         let image = client.imageURL(itemId: "i1", type: .primary, tag: "t", maxWidth: 400)
         XCTAssertEqual(image?.absoluteString, "https://media.example.com/Items/i1/Images/Primary?quality=90&tag=t&maxWidth=400")
         let trick = client.trickplayTileURL(itemId: "i1", width: 320, tileIndex: 3, mediaSourceId: "ms1")
-        XCTAssertEqual(trick?.absoluteString, "https://media.example.com/Videos/i1/Trickplay/320/3.jpg?mediaSourceId=ms1&api_key=tok")
+        XCTAssertEqual(trick?.absoluteString, "https://media.example.com/Videos/i1/Trickplay/320/3.jpg?mediaSourceId=ms1&ApiKey=tok&api_key=tok")
     }
 
     func testLoginStoresToken() async throws {

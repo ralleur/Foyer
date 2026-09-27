@@ -281,6 +281,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     }
 
     func stop() {
+        scrubPreview.stop()
         teardownItemObservers()
         bitmapSubtitle?.stop()
         bitmapSubtitle = nil
@@ -572,10 +573,16 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         }
         host.didMove(toParent: controller)
         subtitleOverlay = host
+        scrubPreview.attach(to: controller)
+    }
+
+    func setTrickplay(_ geometry: TrickplayGeometry?, tileURL: ((Int) -> URL?)?) {
+        scrubPreview.setTrickplay(geometry, tileURL: tileURL)
     }
 
     /// The transport bar covers the lower part of the screen; lift subtitles while it is visible.
     private(set) var transportBarVisible = false
+    private let scrubPreview = SystemScrubPreview()
     private var hidesSystemAudioButton = false
 
     /// Hides AVKit's audio button (identifier `AVAudibleSettings`) while Vela offers its own audio menu. The bar is a
@@ -615,6 +622,7 @@ extension NativePlaybackEngine: AVPlayerViewControllerDelegate {
         Task { @MainActor in
             self.transportBarVisible = visible
             self.subtitleOverlay?.rootView = NativeSubtitleOverlay(engine: self)
+            self.scrubPreview.setActive(visible)
             guard visible else { return }
             // The bar builds its buttons during the transition; catch them before and after it settles.
             for delay in [0.0, 0.15, 0.5] {

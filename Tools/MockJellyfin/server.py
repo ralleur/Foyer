@@ -168,6 +168,7 @@ class Library:
         self.user_data = {}      # id -> dict
         self.segments = {}       # id -> [segment dicts]
         self.external_subs = {}  # (id, index) -> path
+        self.trickplay_dirs = {}  # id -> directory with <index>.jpg sheets
         self.broken = set()
         self.movies_lib = item_id("lib:movies")
         self.shows_lib = item_id("lib:shows")
@@ -176,6 +177,26 @@ class Library:
         self.scan_shows(now)
 
     # MARK: Scanning
+
+    def trickplay(self, iid: str, path: str, duration: float) -> dict:
+        """Jellyfin-style trickplay tiles (320 px, one image every 2 s, 10×10 per sheet), generated once with ffmpeg."""
+        interval, columns, rows, width = 2, 10, 10, 320
+        out = os.path.join(self.root, ".trickplay", iid)
+        if not os.path.exists(os.path.join(out, "0.jpg")):
+            os.makedirs(out, exist_ok=True)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-vf", f"fps=1/{interval},scale={width}:-2,tile={columns}x{rows}",
+                            "-q:v", "4", "-start_number", "0", os.path.join(out, "%d.jpg")], check=False)
+        sheets = sorted(f for f in os.listdir(out) if f.endswith(".jpg")) if os.path.isdir(out) else []
+        if not sheets:
+            return {}
+        probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "json",
+                                path], capture_output=True, text=True)
+        stream = (json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+        height = int(round(width * (stream.get("height") or 9) / (stream.get("width") or 16) / 2)) * 2
+        count = max(1, int(duration // interval) + 1)
+        self.trickplay_dirs[iid] = out
+        return {iid: {str(width): {"Width": width, "Height": height, "TileWidth": columns, "TileHeight": rows,
+                                    "ThumbnailCount": count, "Interval": interval * 1000, "Bandwidth": 0}}}
 
     def media_source(self, iid: str, path: str, external: list) -> dict:
         probe = ffprobe(path)
@@ -240,7 +261,7 @@ class Library:
                 "HasSubtitles": any(s["Type"] == "Subtitle" for s in source["MediaStreams"]),
                 "MediaSources": [source], "MediaStreams": source["MediaStreams"], "Chapters": chapters, "MediaSourceCount": 1,
                 "ImageTags": {}, "BackdropImageTags": [], "PrimaryImageAspectRatio": 0.6667, "Path": path,
-                "Trickplay": {},
+                "Trickplay": self.trickplay(iid, path, duration),
             }
             self.register_art(iid, item, fdir, "poster.jpg", "backdrop.jpg")
             self.items[iid] = item
@@ -303,7 +324,7 @@ class Library:
                         "Width": video and video.get("Width"), "Height": video and video.get("Height"),
                         "HasSubtitles": any(s["Type"] == "Subtitle" for s in source["MediaStreams"]),
                         "MediaSources": [source], "MediaStreams": source["MediaStreams"], "Chapters": chapters, "MediaSourceCount": 1,
-                        "ImageTags": {}, "BackdropImageTags": [], "PrimaryImageAspectRatio": 1.7778, "Path": path, "Trickplay": {},
+                        "ImageTags": {}, "BackdropImageTags": [], "PrimaryImageAspectRatio": 1.7778, "Path": path, "Trickplay": self.trickplay(eid, path, duration),
                         "CommunityRating": 7.0,
                     }
                     thumb = os.path.join(season_dir, f"{stem}-thumb.jpg")
@@ -827,6 +848,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.hls_segment(parts[3], parts[4])
             if len(lparts) >= 7 and lparts[3] == "subtitles":
                 return self.subtitle(iid, int(parts[4]), lparts[6].split(".")[-1])
+            if lparts[2] == "trickplay" and len(lparts) == 5 and iid in lib.trickplay_dirs:
+                sheet = os.path.join(lib.trickplay_dirs[iid], lparts[4])
+                if os.path.exists(sheet):
+                    self.send_file(sheet, "image/jpeg")
+                    return 200
             if lparts[2] == "trickplay" or (len(lparts) >= 4 and lparts[3] == "attachments"):
                 self.send_empty(404)
                 return 404

@@ -70,6 +70,8 @@ final class PlaybackCoordinator: Identifiable {
     private var attemptedRoutes: Set<PlaybackRoute> = []
     private var countdownCancelled = false
     private var countdownStart: TimeInterval?
+    private var nextEpisodeButtonStart: TimeInterval?
+    private static let nextEpisodeButtonLead: TimeInterval = 30
     private var startTask: Task<Void, Never>?
     private var didReportStart = false
     private var externalSubtitles: [ExternalSubtitle] = []
@@ -291,6 +293,7 @@ final class PlaybackCoordinator: Identifiable {
             Task { await loadSegments() }
             Task { await loadNextEpisode() }
             setupTrickplay(server)
+            engine.setTrickplay(trickplay, tileURL: trickplayTileURL)
         } catch is CancellationError {
         } catch {
             let wrapped = VelaError.wrap(error)
@@ -458,7 +461,12 @@ final class PlaybackCoordinator: Identifiable {
 
     private func loadSegments() async {
         do {
-            segments = try await client.mediaSegments(itemId: item.id)
+            let server = try await client.mediaSegments(itemId: item.id)
+            // Episodes without server segments (Intro Skipper) still get intro/credits from chapter names.
+            let chapters = item.isEpisode
+                ? ChapterSegments.segments(chapters: (item.chapters ?? []).map { ($0.name, $0.start) }, duration: duration > 0 ? duration : item.runtime ?? 0)
+                : []
+            segments = ChapterSegments.merge(server: server, chapters: chapters)
             if !segments.isEmpty {
                 Log.info(.playback, "Segments: " + segments.map { "\($0.type.rawValue) \($0.start.clockString)–\($0.end.clockString)" }.joined(separator: ", "))
             }
@@ -476,6 +484,9 @@ final class PlaybackCoordinator: Identifiable {
     }
 
     private func updateCountdownStart() {
+        // The "Next episode" button of the system player: from the credits, or the last 30 s when they are unknown.
+        nextEpisodeButtonStart = nextEpisode == nil || duration <= 60 ? nil
+            : (segments.first { $0.type == .outro }?.start ?? max(0, duration - Self.nextEpisodeButtonLead))
         guard nextEpisode != nil, preferences.autoPlayNextEpisode, duration > 0 else {
             countdownStart = nil
             return
@@ -493,7 +504,12 @@ final class PlaybackCoordinator: Identifiable {
     // MARK: Time-driven UI state
 
     private func tick(time: TimeInterval) {
-        let prompt = skipPolicy.prompt(at: time, segments: segments, mediaDuration: duration, dismissed: dismissedSegments, hasNextEpisode: nextEpisode != nil)
+        var prompt = skipPolicy.prompt(at: time, segments: segments, mediaDuration: duration, dismissed: dismissedSegments, hasNextEpisode: nextEpisode != nil)
+        // The advanced engine shows its own countdown card; the system player gets a button for the next episode.
+        if case .none = prompt, engine?.kind == .native, nextEpisode != nil, let start = nextEpisodeButtonStart,
+           time >= start, duration - time > 1, !dismissedSegments.contains("next-episode") {
+            prompt = .nextEpisode(creditsStart: start, mediaEnd: duration)
+        }
         if prompt != skipPrompt {
             skipPrompt = prompt
             engine?.updateSkipAction(title: skipTitle(prompt))
@@ -611,6 +627,7 @@ final class PlaybackCoordinator: Identifiable {
         nextEpisode = nil
         countdownSeconds = nil
         countdownStart = nil
+        nextEpisodeButtonStart = nil
         countdownCancelled = false
         attemptedRoutes = []
         fallbackRoutes = []

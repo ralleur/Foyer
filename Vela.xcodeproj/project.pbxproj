@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0346C9F590613AB5CB6C1E3D /* BaseItem+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAAF6B2B272369449545C438 /* BaseItem+Display.swift */; };
+		0537E31371F070691A864E64 /* SystemScrubPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = B79DA200789DC26FE47FFCE5 /* SystemScrubPreview.swift */; };
 		0B562C7CB18F47613108EC5D /* VelaFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 1B1B119E733A7FA0E039420A /* VelaFoundation */; };
 		0D0CA0345E4A74BF8FE9F719 /* NextEpisodeResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2DD1DDE2D15D08E86B6B40 /* NextEpisodeResolver.swift */; };
 		0D3D5D67E2ABE19672AB51EC /* TopShelfKit in Frameworks */ = {isa = PBXBuildFile; productRef = C97986FC40B561EEBA096A7F /* TopShelfKit */; };
@@ -206,6 +207,7 @@
 		AE18AE127B8CB692D5187835 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		AF3017979382EA7A75F5642D /* VelaCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VelaCore; path = Packages/VelaCore; sourceTree = SOURCE_ROOT; };
 		B2485AA7D8ECD54ACDFBC904 /* MPVController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MPVController.swift; sourceTree = "<group>"; };
+		B79DA200789DC26FE47FFCE5 /* SystemScrubPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemScrubPreview.swift; sourceTree = "<group>"; };
 		BDF3F5701310F0918844202C /* LibraryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViewModel.swift; sourceTree = "<group>"; };
 		BF3DFED25A2BCC7D5295F882 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/TopShelf.strings; sourceTree = "<group>"; };
 		C1078DFACB04854902CB04AA /* VelaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VelaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -512,6 +514,7 @@
 			children = (
 				C2F5A459186EA3535DCFF173 /* AdvancedPlayerOverlay.swift */,
 				A9E81A38558BD0E741A8FF2A /* RemoteInputView.swift */,
+				B79DA200789DC26FE47FFCE5 /* SystemScrubPreview.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -895,6 +898,7 @@
 				BB6B1F786621974CE21E00CF /* SettingsView.swift in Sources */,
 				204098D5A2764CFFEC05FC5D /* SubtitleLoader.swift in Sources */,
 				E1909318D1EE78505A1FCE3C /* SubtitleOverlayView.swift in Sources */,
+				0537E31371F070691A864E64 /* SystemScrubPreview.swift in Sources */,
 				90D1FF2AE7AE66B23DEDA187 /* Theme.swift in Sources */,
 				A075DD35452D80836B709344 /* TopShelfSync.swift in Sources */,
 				72CB8F92DDA7BD6155071AD1 /* VelaApp.swift in Sources */,

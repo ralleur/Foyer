@@ -180,6 +180,12 @@ protocol PlaybackEngine: AnyObject {
     func setControlsVisible(_ visible: Bool)
     /// Bitmap subtitles decoded by Vela from the original file, drawn over the picture (nil = none).
     func setBitmapSubtitle(_ source: EmbeddedSubtitleSource?)
+    /// Trickplay thumbnails for scrubbing (engines with their own scrub UI read them from the coordinator).
+    func setTrickplay(_ geometry: TrickplayGeometry?, tileURL: ((Int) -> URL?)?)
     func appDidEnterBackground()
     func appWillEnterForeground()
+}
+
+extension PlaybackEngine {
+    func setTrickplay(_ geometry: TrickplayGeometry?, tileURL: ((Int) -> URL?)?) {}
 }

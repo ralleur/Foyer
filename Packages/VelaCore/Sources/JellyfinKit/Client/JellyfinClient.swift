@@ -111,10 +111,14 @@ public final class JellyfinClient: @unchecked Sendable {
         return components?.url
     }
 
-    /// Appends `api_key` for URLs consumed by media players that cannot send headers.
+    /// Appends the token for URLs consumed by media players and image loaders that cannot send headers. Jellyfin 12
+    /// accepts `ApiKey` everywhere but `api_key` only on some endpoints (trickplay tiles answer 401), older servers
+    /// the other way round, so both are sent.
     public func mediaURL(for path: String, query: [URLQueryItem] = []) -> URL? {
         var q = query
-        if let token = accessToken, !path.lowercased().contains("api_key=") {
+        let lower = path.lowercased()
+        if let token = accessToken, !lower.contains("api_key="), !lower.contains("apikey=") {
+            q.append(URLQueryItem(name: "ApiKey", value: token))
             q.append(URLQueryItem(name: "api_key", value: token))
         }
         return url(for: path, query: q)
