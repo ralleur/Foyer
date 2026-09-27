@@ -67,6 +67,7 @@
 		A39D7F3EBD2355C05FFA139D /* DeviceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7C838A6DF90786E7A6BF50 /* DeviceInfo.swift */; };
 		A56F81B74247B0828A0E3C97 /* dvdsub-sample.mkv in Resources */ = {isa = PBXBuildFile; fileRef = FF7AA20FB1F28078FC5E6B21 /* dvdsub-sample.mkv */; };
 		A591830F448954367B34CF1B /* VelaFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 14D8ED5208B1E1F021C479CB /* VelaFoundation */; };
+		A8A7DA1EF264639F0BF64134 /* CaptionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9651084379D8F41EC9473B7F /* CaptionStyle.swift */; };
 		AFEAFADFECC09C5029438188 /* UITestFixtures in Resources */ = {isa = PBXBuildFile; fileRef = E5673CFF046B7D5AC4F9AC4F /* UITestFixtures */; };
 		B5A4E460A0CF756C8BA2E44B /* FixtureTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA3EE16B03B26776E73F222 /* FixtureTransport.swift */; };
 		B7F0C9737284B66F49607A53 /* AppEnvironment+Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C72234F6FB7FFFEA62369CA /* AppEnvironment+Playback.swift */; };
@@ -195,6 +196,7 @@
 		89B1D0100CA2CD2BF867C12E /* SeriesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesViewModel.swift; sourceTree = "<group>"; };
 		8AA522E8BB7EEAD5C0B8D31E /* ImagePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePipeline.swift; sourceTree = "<group>"; };
 		8DD96D8F693D175AEFEE218A /* AppEnvironment+Links.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppEnvironment+Links.swift"; sourceTree = "<group>"; };
+		9651084379D8F41EC9473B7F /* CaptionStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptionStyle.swift; sourceTree = "<group>"; };
 		97489B146456C0771AF8EBA2 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		9B4D362459D499FBC8768DA1 /* IntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationTests.swift; sourceTree = "<group>"; };
 		9E29689A6EEFF71E48ECADD9 /* RemoteMessageBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteMessageBanner.swift; sourceTree = "<group>"; };
@@ -323,6 +325,7 @@
 		2BA87910E731A6A12201E0F9 /* Subtitles */ = {
 			isa = PBXGroup;
 			children = (
+				9651084379D8F41EC9473B7F /* CaptionStyle.swift */,
 				40596DBB7630B18AD9F77E9C /* EmbeddedSubtitleSource.swift */,
 				F5B05B53E1B4CCB42ECB8B19 /* SubtitleLoader.swift */,
 				47B54BA20EEE095D412F5131 /* SubtitleOverlayView.swift */,
@@ -844,6 +847,7 @@
 				B9D82AD364BFF98ABB6DB9EC /* AppGroup.swift in Sources */,
 				ED1F725016FB5255C4884D56 /* AppLog.swift in Sources */,
 				0346C9F590613AB5CB6C1E3D /* BaseItem+Display.swift in Sources */,
+				A8A7DA1EF264639F0BF64134 /* CaptionStyle.swift in Sources */,
 				7EA649DEA0663377584DE4D5 /* Cards.swift in Sources */,
 				A2B14D49E87D86354F7EA5B2 /* DebugURLPlayerScreen.swift in Sources */,
 				42709FBBFF9EAFE8136D406A /* DebugViews.swift in Sources */,

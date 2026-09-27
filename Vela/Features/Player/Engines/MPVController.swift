@@ -17,6 +17,7 @@ final class MPVController: @unchecked Sendable {
         var demuxerMaxBytes = 200 * 1024 * 1024
         var demuxerBackBytes = 60 * 1024 * 1024
         var userAgent = DeviceInfo.httpUserAgent
+        var captionStyle = CaptionStyle.current
     }
 
     enum Event {
@@ -73,12 +74,14 @@ final class MPVController: @unchecked Sendable {
         set("sub-ass", "yes")
         set("embeddedfonts", "yes")
         set("sub-font", "Helvetica Neue")
-        set("sub-font-size", String(Int(52 * options.subtitleFontScale)))
+        set("sub-font-size", String(Int(52 * options.subtitleFontScale * Double(options.captionStyle.relativeSize))))
         set("sub-border-size", "3")
         set("sub-shadow-offset", "1")
         set("sub-margin-y", "60")
         set("sub-scale-with-window", "yes")
         set("sub-ass-override", "no")
+        // SubRip/WebVTT in the system caption style; ASS keeps its own styling (override "no").
+        for (name, value) in options.captionStyle.mpvOptions { set(name, value) }
         set("sub-fix-timing", "yes")
         set("sid", "no")
 

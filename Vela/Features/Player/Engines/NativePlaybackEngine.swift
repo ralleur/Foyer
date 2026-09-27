@@ -93,6 +93,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         item.externalMetadata = metadata(for: request)
         item.navigationMarkerGroups = chapterGroups(for: request)
         observe(item)
+        Log.info(.subtitle, "System caption style: \(CaptionStyle.current.logDescription)")
         pendingSeek = request.startPosition > 1 ? request.startPosition : nil
         if let start = pendingSeek {
             // Seek before the player gets the item: otherwise AVPlayer first loads the init segment and segment 0,
@@ -483,6 +484,13 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
             }
             menus.append(UIMenu(title: L10n.subtitles, image: UIImage(systemName: "captions.bubble"), children: actions))
         }
+        // One menu per kind. Vela draws these subtitles itself; an empty language list removes the system's
+        // subtitle button (which would only offer "Off"/"Auto" for the server stream).
+        controller.allowedSubtitleOptionLanguages = systemShowsSubtitleMenu ? nil : []
+        // The system's audio button lists the stream's single remuxed track as "Unknown" next to Vela's list of the
+        // file's tracks. There is no API to remove it, so it is hidden whenever the transport bar appears.
+        hidesSystemAudioButton = audioMenuTracks.count > 1 && !systemShowsAudioMenu
+        hideRedundantSystemButtons()
         controller.transportBarCustomMenuItems = menus
     }
 
@@ -568,6 +576,25 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     /// The transport bar covers the lower part of the screen; lift subtitles while it is visible.
     private(set) var transportBarVisible = false
+    private var hidesSystemAudioButton = false
+
+    /// Hides AVKit's audio button (identifier `AVAudibleSettings`) while Vela offers its own audio menu. The bar is a
+    /// collection view that re-applies `isHidden`/`alpha` and reuses its cells, so every pass sets all of its cells:
+    /// only the system audio cell loses its content and focus.
+    private func hideRedundantSystemButtons() {
+        func find(_ view: UIView) -> UICollectionView? {
+            if view.accessibilityIdentifier == "AVAudibleSettings" { return view.superview as? UICollectionView }
+            for subview in view.subviews { if let found = find(subview) { return found } }
+            return nil
+        }
+        guard let bar = find(controller.view) else { return }
+        for cell in bar.visibleCells {
+            let hide = hidesSystemAudioButton && cell.accessibilityIdentifier == "AVAudibleSettings"
+            cell.contentView.isHidden = hide
+            cell.isUserInteractionEnabled = !hide
+            cell.accessibilityElementsHidden = hide
+        }
+    }
 
     func setControlsVisible(_ visible: Bool) {} // the system transport bar is handled via its delegate callback
 
@@ -588,6 +615,12 @@ extension NativePlaybackEngine: AVPlayerViewControllerDelegate {
         Task { @MainActor in
             self.transportBarVisible = visible
             self.subtitleOverlay?.rootView = NativeSubtitleOverlay(engine: self)
+            guard visible else { return }
+            // The bar builds its buttons during the transition; catch them before and after it settles.
+            for delay in [0.0, 0.15, 0.5] {
+                try? await Task.sleep(for: .seconds(delay))
+                self.hideRedundantSystemButtons()
+            }
         }
     }
 

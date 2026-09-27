@@ -28,6 +28,7 @@ struct SubtitleCueView: View {
     var bottomInset: CGFloat = 90
 
     @State private var cues: [SubtitleCue] = []
+    @State private var style = CaptionStyle.current
     let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -46,6 +47,7 @@ struct SubtitleCueView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .onReceive(timer) { _ in refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: CaptionStyle.didChange)) { _ in style = CaptionStyle.current }
         .onAppear(perform: refresh)
         .animation(.linear(duration: 0.08), value: cues)
     }
@@ -59,16 +61,15 @@ struct SubtitleCueView: View {
         if active != cues { cues = active }
     }
 
+    /// Styled like the system captions (Settings › Accessibility › Subtitles and Captions › Style).
     private func cueText(_ cues: [SubtitleCue]) -> some View {
         Text(attributed(cues))
-            .font(.system(size: 44 * scale, weight: .medium))
-            .foregroundStyle(.white)
             .multilineTextAlignment(.center)
             .lineSpacing(6)
             .padding(.horizontal, 22)
             .padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.45)))
-            .shadow(color: .black.opacity(0.9), radius: 3, x: 0, y: 1)
+            .background(RoundedRectangle(cornerRadius: style.windowCornerRadius).fill(Color(style.windowColor)))
+            .modifier(CaptionEdge(edge: style.edge))
             .frame(maxWidth: 1500)
             .accessibilityLabel(cues.map(\.text).joined(separator: " "))
     }
@@ -82,21 +83,45 @@ struct SubtitleCueView: View {
             var italic = false
             while let range = remaining.range(of: #"</?i>"#, options: .regularExpression) {
                 let chunk = String(remaining[remaining.startIndex..<range.lowerBound])
-                if !chunk.isEmpty {
-                    var piece = AttributedString(chunk)
-                    if italic { piece.font = .system(size: 44 * scale, weight: .medium).italic() }
-                    result += piece
-                }
+                if !chunk.isEmpty { result += styled(chunk, italic: italic) }
                 italic = remaining[range] == "<i>"
                 remaining = remaining[range.upperBound...]
             }
-            if !remaining.isEmpty {
-                var piece = AttributedString(String(remaining))
-                if italic { piece.font = .system(size: 44 * scale, weight: .medium).italic() }
-                result += piece
-            }
+            if !remaining.isEmpty { result += styled(String(remaining), italic: italic) }
         }
         return result
+    }
+
+    private func styled(_ text: String, italic: Bool) -> AttributedString {
+        var piece = AttributedString(text)
+        piece.font = style.font(size: 44 * scale, italic: italic)
+        piece.foregroundColor = Color(style.textColor)
+        if style.backgroundColor.cgColor.alpha > 0.01 { piece.backgroundColor = Color(style.backgroundColor) }
+        return piece
+    }
+}
+
+/// The system's character edge style, approximated with shadows.
+private struct CaptionEdge: ViewModifier {
+    let edge: CaptionStyle.Edge
+
+    func body(content: Content) -> some View {
+        switch edge {
+        case .none:
+            content
+        case .dropShadow:
+            content.shadow(color: .black.opacity(0.85), radius: 2, x: 2, y: 2)
+        case .raised:
+            content.shadow(color: .black.opacity(0.9), radius: 0, x: 0, y: 2)
+        case .depressed:
+            content.shadow(color: .white.opacity(0.5), radius: 0, x: 0, y: -2)
+        case .uniform:
+            content
+                .shadow(color: .black, radius: 0, x: 1.5, y: 1.5)
+                .shadow(color: .black, radius: 0, x: -1.5, y: -1.5)
+                .shadow(color: .black, radius: 0, x: 1.5, y: -1.5)
+                .shadow(color: .black, radius: 0, x: -1.5, y: 1.5)
+        }
     }
 }
 
