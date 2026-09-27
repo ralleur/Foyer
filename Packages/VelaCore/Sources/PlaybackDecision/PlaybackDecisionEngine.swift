@@ -75,6 +75,9 @@ public enum SubtitleHandling: Sendable, Hashable, Codable {
     case externalText
     /// The server burns the subtitle into the video (transcode).
     case burnIn
+    /// Vela demuxes the bitmap track (PGS, VobSub, DVB) from the original file with FFmpeg and draws it over the
+    /// system player, so the video path (direct play or server remux) stays untouched.
+    case bitmapOverlay
 }
 
 public struct PlaybackDecision: Sendable, Hashable {
@@ -147,9 +150,12 @@ public struct PlaybackDecisionEngine: Sendable {
                 if subtitle.isTextSubtitle {
                     return subtitle.normalizedCodec == "mov_text" && subtitle.isExternal != true ? .embedded : .externalText
                 }
+                if caps.bitmapOverlayAvailable { return .bitmapOverlay }
                 return prefs.allowBurnInSubtitles ? .burnIn : .none
             case .transcode:
-                return subtitle.isTextSubtitle ? .externalText : (prefs.allowBurnInSubtitles ? .burnIn : .none)
+                if subtitle.isTextSubtitle { return .externalText }
+                if caps.bitmapOverlayAvailable { return .bitmapOverlay }
+                return prefs.allowBurnInSubtitles ? .burnIn : .none
             }
         }
 
@@ -190,8 +196,9 @@ public struct PlaybackDecisionEngine: Sendable {
             let remuxKeepsHDR = isHDR && !caps.advancedEngineSupportsHDROutput && prefs.preferHDRPicture
                 && prefs.directPlayMode != .forced && serverDirectStream && prefs.advancedEngineMode != .always
                 && NativeCapability.videoCompatibleAfterRemux(video, caps: caps)
-                && !selectedSubtitleIsBitmap
+                && (!selectedSubtitleIsBitmap || caps.bitmapOverlayAvailable)
             if remuxKeepsHDR {
+                if selectedSubtitleIsBitmap { reasons.append("\(subtitle?.technicalLabel ?? "bitmap") subtitles are decoded from the original file and drawn by Vela") }
                 reasons.append("\(video?.effectiveVideoRange.displayName ?? "HDR") is preserved by the system player after a server remux (no video re-encode)")
                 if !native.audioOK, let audio {
                     reasons.append("\(audio.technicalLabel) is converted by the server (audio only)")

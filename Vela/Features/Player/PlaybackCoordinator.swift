@@ -73,6 +73,10 @@ final class PlaybackCoordinator: Identifiable {
     private var startTask: Task<Void, Never>?
     private var didReportStart = false
     private var externalSubtitles: [ExternalSubtitle] = []
+    /// PGS/VobSub decoded from the original file for the native engine (`SubtitleHandling.bitmapOverlay`).
+    private var bitmapSubtitle: BitmapSubtitleSource?
+    /// Overlay to start once the engine plays: the server reads the same file for its remux and gets the disk first.
+    private var pendingBitmapOverlay: (streamIndex: Int, source: MediaSource)?
     private var subtitleLoadTask: Task<Void, Never>?
     private let skipPolicy = SkipSegmentPolicy()
     private let countdownPolicy = NextEpisodeCountdownPolicy()
@@ -120,6 +124,8 @@ final class PlaybackCoordinator: Identifiable {
         startTask?.cancel()
         subtitleLoadTask?.cancel()
         let position = currentTime
+        stopBitmapOverlay()
+        cancelAbandonedServerStream()
         let engine = self.engine
         self.engine = nil
         PlaybackDecisionJournal.shared.updateStatistics(statistics.lines.joined(separator: "\n"))
@@ -177,7 +183,9 @@ final class PlaybackCoordinator: Identifiable {
             let request = PlaybackInfoRequest(userId: client.userId, mediaSourceId: source.id, deviceProfile: decision.deviceProfile,
                                               maxStreamingBitrate: preferences.playback.maxStreamingBitrate ?? DeviceProfileBuilder.unlimitedBitrate,
                                               startTimeTicks: JellyfinTicks.ticks(seconds: resolvedStart),
-                                              audioStreamIndex: decision.audioStreamIndex, subtitleStreamIndex: decision.subtitleStreamIndex,
+                                              audioStreamIndex: decision.audioStreamIndex,
+                                              // -1 keeps the server from burning a bitmap track in; Vela draws it itself.
+                                              subtitleStreamIndex: decision.subtitleHandling == .bitmapOverlay ? -1 : decision.subtitleStreamIndex,
                                               enableDirectPlay: decision.enableDirectPlay && decision.route.method == .directPlay,
                                               enableDirectStream: decision.enableDirectStream, enableTranscoding: decision.enableTranscoding)
             let response = try await client.playbackInfo(itemId: item.id, request: request)
@@ -218,6 +226,13 @@ final class PlaybackCoordinator: Identifiable {
                 url = transcoding
             }
 
+            // 5b. Server streams: fetch the first segment before the player does. Jellyfin needs a few seconds
+            // (or more on a slow disk) to seek and produce it; AVPlayer gives up after ~10 s, we wait longer.
+            if decision.route == .directStream || decision.route == .transcode, url.path.lowercased().hasSuffix(".m3u8") {
+                await HLSWarmup.prefetchFirstSegment(of: url)
+                try Task.checkCancellation()
+            }
+
             // 6. Tracks and subtitles.
             buildTracks(from: server, decision: decision)
             selectedAudioIndex = decision.audioStreamIndex
@@ -251,6 +266,12 @@ final class PlaybackCoordinator: Identifiable {
             engine.subtitleDelay = subtitleDelay
             engine.audioDelay = audioDelay
             engine.load(load)
+            stopBitmapOverlay()
+            if decision.subtitleHandling == .bitmapOverlay, let index = decision.subtitleStreamIndex {
+                pendingBitmapOverlay = (index, server)
+            } else {
+                pendingBitmapOverlay = nil
+            }
             engine.updateTrackMenus(audio: audioTracks, subtitles: subtitleTracks, selectedAudio: selectedAudioIndex, selectedSubtitle: selectedSubtitleIndex)
             phase = .ready
             isSwitchingEngine = false
@@ -380,11 +401,28 @@ final class PlaybackCoordinator: Identifiable {
             if route != .directStream, source.supportsDirectStream ?? true, NativeCapability.videoCompatibleAfterRemux(video, caps: capabilities) {
                 chain.append(.directStream)
             }
+            // A server stream that failed (slow remux, broken segments) is better replaced by local playback
+            // than by another server stream; the picture may lose HDR, the film keeps playing.
+            if route == .directStream || route == .transcode, advanced.canDirectPlay, serverAllowsDirectPlay(source) {
+                chain.append(.advancedDirectPlay)
+            }
             if route != .transcode, source.supportsTranscoding ?? true {
                 chain.append(.transcode)
             }
         }
         return chain.filter { !attemptedRoutes.contains($0) }
+    }
+
+    private func serverAllowsDirectPlay(_ source: MediaSource) -> Bool { source.supportsDirectPlay ?? true }
+
+    /// Tells the server to drop an HLS job the player abandoned before it reported a start (the reporter only
+    /// cancels jobs of started sessions). Orphaned ffmpeg jobs compete with the retry for the same file.
+    private func cancelAbandonedServerStream() {
+        guard !didReportStart, let decision, decision.route == .directStream || decision.route == .transcode,
+              let playSessionId else { return }
+        let client = self.client
+        Task { try? await client.stopTranscoding(playSessionId: playSessionId) }
+        Log.info(.jellyfin, "Cancelled the abandoned server stream \(playSessionId.prefix(8))")
     }
 
     private func attemptFallback(after error: VelaError) {
@@ -396,6 +434,7 @@ final class PlaybackCoordinator: Identifiable {
             return
         }
         Log.warning(.playback, "Route \(decision?.route.rawValue ?? "?") failed (\(error)); trying \(next.rawValue)")
+        cancelAbandonedServerStream()
         // If the engine never produced a frame, resume where the user asked to start, not at 0;
         // if it died during a seek, resume at the seek target.
         let position = pendingSeek?.target ?? (didReportStart ? max(currentTime, 0) : max(currentTime, requestedStartPosition))
@@ -495,6 +534,7 @@ final class PlaybackCoordinator: Identifiable {
         let clamped = max(0, min(time, duration > 0 ? duration - 0.5 : time))
         pendingSeek = (clamped, Date())
         engine?.seek(to: clamped)
+        bitmapSubtitle?.seek(to: clamped)
         currentTime = clamped
     }
 
@@ -576,6 +616,7 @@ final class PlaybackCoordinator: Identifiable {
         // Keep language choices, but resolve indices fresh for the new file.
         selectedAudioIndex = nil
         selectedSubtitleIndex = nil
+        stopBitmapOverlay()
     }
 
     func selectAudio(_ track: PlayerTrack) {
@@ -595,7 +636,18 @@ final class PlaybackCoordinator: Identifiable {
         guard !transitioning, index != selectedSubtitleIndex else { return }
         guard let engine, let source = serverSource else { return }
         let stream = source.stream(index: index)
-        let needsOtherEngine = (stream?.isBitmapSubtitle ?? false) && engine.kind == .native
+        let isBitmap = stream?.isBitmapSubtitle ?? false
+        if isBitmap, engine.kind == .native, capabilities.bitmapOverlayAvailable, let index {
+            // Decoded from the original file and drawn over AVPlayer; no reload, the HDR remux stays.
+            startBitmapOverlay(streamIndex: index, source: source, at: currentTime)
+            selectedSubtitleIndex = index
+            reporter.updateTracks(audio: selectedAudioIndex, subtitle: selectedSubtitleIndex)
+            engine.updateTrackMenus(audio: audioTracks, subtitles: subtitleTracks, selectedAudio: selectedAudioIndex, selectedSubtitle: selectedSubtitleIndex)
+            Log.info(.subtitle, "Switched subtitles to #\(index) (bitmap overlay)")
+            return
+        }
+        if bitmapSubtitle != nil { stopBitmapOverlay() }
+        let needsOtherEngine = isBitmap && engine.kind == .native
         if !needsOtherEngine, engine.selectSubtitle(streamIndex: index) {
             selectedSubtitleIndex = index
             reporter.updateTracks(audio: selectedAudioIndex, subtitle: selectedSubtitleIndex)
@@ -620,6 +672,37 @@ final class PlaybackCoordinator: Identifiable {
             attemptedRoutes = []
             await prepare(startPosition: position, overrideAudio: audio, overrideSubtitle: subtitle ?? -1)
         }
+    }
+
+    // MARK: Bitmap subtitle overlay
+
+    private func startBitmapOverlay(streamIndex: Int, source: MediaSource, at time: TimeInterval) {
+        stopBitmapOverlay()
+        guard let url = client.directStreamURL(itemId: item.id, mediaSourceId: source.id, playSessionId: nil, eTag: source.eTag, container: source.container) else {
+            Log.warning(.subtitle, "Bitmap subtitles: no direct URL for the original file")
+            return
+        }
+        let stream = source.stream(index: streamIndex)
+        let overlay = BitmapSubtitleSource(url: url, streamIndex: streamIndex, language: stream?.language)
+        bitmapSubtitle = overlay
+        overlay.start(at: time)
+        engine?.setBitmapSubtitle(overlay)
+        Log.info(.subtitle, "Bitmap subtitles #\(streamIndex) (\(stream?.technicalLabel ?? "?")) decoded from the original file for the system player")
+    }
+
+    /// Called when the engine reports the first playing state.
+    private func startPendingBitmapOverlay() {
+        guard let pending = pendingBitmapOverlay else { return }
+        pendingBitmapOverlay = nil
+        startBitmapOverlay(streamIndex: pending.streamIndex, source: pending.source, at: currentTime)
+    }
+
+    private func stopBitmapOverlay() {
+        pendingBitmapOverlay = nil
+        guard let bitmapSubtitle else { return }
+        bitmapSubtitle.stop()
+        self.bitmapSubtitle = nil
+        engine?.setBitmapSubtitle(nil)
     }
 
     private func refreshSubtitleOverlay() {
@@ -668,6 +751,7 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
         statistics = engine.statistics
         switch state {
         case .playing:
+            startPendingBitmapOverlay()
             if !didReportStart, let decision, let source = serverSource {
                 didReportStart = true
                 reporter.start(context: .init(itemId: item.id, mediaSourceId: source.id, playSessionId: playSessionId,
@@ -692,6 +776,7 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
 
     func engine(_ engine: any PlaybackEngine, didUpdateTime time: TimeInterval, duration: TimeInterval) {
         guard engine === self.engine else { return }
+        bitmapSubtitle?.update(playhead: time)
         if let pending = pendingSeek {
             if abs(time - pending.target) <= 3 || Date().timeIntervalSince(pending.issued) > 15 {
                 pendingSeek = nil

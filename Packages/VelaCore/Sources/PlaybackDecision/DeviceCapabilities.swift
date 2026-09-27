@@ -25,13 +25,16 @@ public struct DeviceCapabilities: Sendable, Hashable, Codable {
     public var advancedEngineSupportsHDROutput: Bool
     /// Maximum height the advanced engine decodes in software with headroom (AV1/VP9 without hardware).
     public var advancedEngineMaxSoftwareDecodeHeight: Int
+    /// FFmpeg is linked: bitmap subtitles (PGS, VobSub, DVB) can be demuxed from the original file and drawn
+    /// over the system player, so they no longer force the advanced engine (and SDR) on HDR titles.
+    public var bitmapOverlayAvailable: Bool
 
     public init(modelName: String = "Apple TV 4K", supportsHEVCHardware: Bool = true, supportsHEVC10Bit: Bool = true,
                 supportsAV1Hardware: Bool = false, supportsHDR10: Bool = true, supportsHLG: Bool = true,
                 supportsDolbyVision: Bool = true, maxVideoWidth: Int = 3840, maxVideoHeight: Int = 2160,
                 maxFrameRate: Double = 60, maxOutputChannels: Int = 8, supportsDolbyPassthrough: Bool = true,
                 advancedEngineAvailable: Bool = true, advancedEngineSupportsHDROutput: Bool = false,
-                advancedEngineMaxSoftwareDecodeHeight: Int = 1080) {
+                advancedEngineMaxSoftwareDecodeHeight: Int = 1080, bitmapOverlayAvailable: Bool = true) {
         self.modelName = modelName
         self.supportsHEVCHardware = supportsHEVCHardware
         self.supportsHEVC10Bit = supportsHEVC10Bit
@@ -47,6 +50,7 @@ public struct DeviceCapabilities: Sendable, Hashable, Codable {
         self.advancedEngineAvailable = advancedEngineAvailable
         self.advancedEngineSupportsHDROutput = advancedEngineSupportsHDROutput
         self.advancedEngineMaxSoftwareDecodeHeight = advancedEngineMaxSoftwareDecodeHeight
+        self.bitmapOverlayAvailable = bitmapOverlayAvailable
     }
 
     /// Apple TV 4K (any generation) on an HDR/Dolby Vision display.

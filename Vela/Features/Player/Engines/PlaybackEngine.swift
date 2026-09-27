@@ -178,6 +178,8 @@ protocol PlaybackEngine: AnyObject {
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?)
     /// Called when Vela's own controls cover the lower part of the picture (subtitles move up).
     func setControlsVisible(_ visible: Bool)
+    /// Bitmap subtitles decoded by Vela from the original file, drawn over the picture (nil = none).
+    func setBitmapSubtitle(_ source: BitmapSubtitleSource?)
     func appDidEnterBackground()
     func appWillEnterForeground()
 }

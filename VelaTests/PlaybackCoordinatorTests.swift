@@ -38,6 +38,8 @@ final class MockEngine: PlaybackEngine {
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool) {}
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?) {}
     func setControlsVisible(_ visible: Bool) {}
+    var bitmapSubtitles: [BitmapSubtitleSource?] = []
+    func setBitmapSubtitle(_ source: BitmapSubtitleSource?) { bitmapSubtitles.append(source) }
     func appDidEnterBackground() {}
     func appWillEnterForeground() {}
 
@@ -209,6 +211,29 @@ final class PlaybackCoordinatorTests: XCTestCase {
         second.delegate?.engineDidCompleteSeek(second)
         second.delegate?.engine(second, didUpdateTime: 3002, duration: 9984)
         XCTAssertEqual(coordinator.currentTime, 3002, accuracy: 0.5)
+    }
+
+    func testBitmapSubtitleOnHDRStaysNativeWithOverlay() async throws {
+        // Dune fixture: HDR MKV with an English PGS track (index 6). Selecting it keeps the system player (HDR remux)
+        // and hands the engine a bitmap source decoded from the original file instead of switching to mpv.
+        let coordinator = makeCoordinator(item: BaseItem(id: "a1b2c3", name: "Dune", type: .movie))
+        coordinator.preferredSubtitleStreamIndex = 6
+        coordinator.begin()
+        try await waitUntilReady(coordinator)
+        let engine = try XCTUnwrap(engines.first)
+        XCTAssertEqual(engine.kind, .native)
+        XCTAssertEqual(coordinator.decision?.subtitleHandling, .bitmapOverlay)
+        XCTAssertEqual(coordinator.selectedSubtitleIndex, 6)
+        XCTAssertTrue(engine.bitmapSubtitles.compactMap { $0 }.isEmpty, "the overlay waits until the player runs (the remux gets the disk first)")
+        engine.simulateReady()
+        let source = try XCTUnwrap(engine.bitmapSubtitles.last ?? nil, "engine received a bitmap subtitle source once playing")
+        XCTAssertEqual(source.streamIndex, 6)
+        XCTAssertTrue(source.url.absoluteString.contains("static=true"), "decoded from the original file, not the remux")
+        // Switching subtitles off stops the overlay without reloading.
+        coordinator.selectSubtitle(.subtitlesOff)
+        XCTAssertNil(coordinator.selectedSubtitleIndex)
+        XCTAssertTrue(source.isStopped)
+        XCTAssertEqual(engines.count, 1)
     }
 
     func testCloseStopsEngineAndCallsBack() async throws {

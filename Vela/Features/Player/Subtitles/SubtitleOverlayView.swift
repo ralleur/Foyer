@@ -8,11 +8,15 @@ struct NativeSubtitleOverlay: View {
     let engine: NativePlaybackEngine
 
     var body: some View {
-        SubtitleCueView(timelineProvider: { engine.subtitleTimelineProvider?() },
-                        timeProvider: { engine.currentTime - engine.subtitleDelay },
-                        isPlaying: { engine.isPlaying },
-                        scale: engine.subtitleScale,
-                        bottomInset: engine.transportBarVisible ? 230 : 90)
+        ZStack {
+            BitmapSubtitleView(sourceProvider: { engine.bitmapSubtitle },
+                               timeProvider: { engine.currentTime - engine.subtitleDelay })
+            SubtitleCueView(timelineProvider: { engine.subtitleTimelineProvider?() },
+                            timeProvider: { engine.currentTime - engine.subtitleDelay },
+                            isPlaying: { engine.isPlaying },
+                            scale: engine.subtitleScale,
+                            bottomInset: engine.transportBarVisible ? 230 : 90)
+        }
     }
 }
 
@@ -93,5 +97,45 @@ struct SubtitleCueView: View {
             }
         }
         return result
+    }
+}
+
+/// Draws decoded bitmap subtitles (PGS/VobSub) over the system player. The subtitle canvas (usually the
+/// video frame size) is fitted into the overlay like the video itself, so positions match the picture.
+struct BitmapSubtitleView: View {
+    let sourceProvider: () -> BitmapSubtitleSource?
+    let timeProvider: () -> TimeInterval
+
+    @State private var frame: BitmapSubtitleFrame?
+    let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                if let frame, frame.canvasWidth > 0, frame.canvasHeight > 0 {
+                    let rect = fitted(canvas: CGSize(width: frame.canvasWidth, height: frame.canvasHeight), into: geometry.size)
+                    let scale = rect.width / CGFloat(frame.canvasWidth)
+                    ForEach(Array(frame.images.enumerated()), id: \.offset) { _, image in
+                        Image(decorative: image.image, scale: 1)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: CGFloat(image.width) * scale, height: CGFloat(image.height) * scale)
+                            .offset(x: rect.minX + CGFloat(image.x) * scale, y: rect.minY + CGFloat(image.y) * scale)
+                    }
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+        }
+        .allowsHitTesting(false)
+        .onReceive(timer) { _ in
+            let next = sourceProvider()?.frame(at: timeProvider())
+            if next?.start != frame?.start || (next == nil) != (frame == nil) { frame = next }
+        }
+    }
+
+    private func fitted(canvas: CGSize, into size: CGSize) -> CGRect {
+        let scale = min(size.width / canvas.width, size.height / canvas.height)
+        let width = canvas.width * scale, height = canvas.height * scale
+        return CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height)
     }
 }

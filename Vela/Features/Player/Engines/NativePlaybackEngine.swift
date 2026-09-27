@@ -27,6 +27,8 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     private var pendingSeek: TimeInterval?
     private var didStartPlaying = false
     private var subtitleOverlay: UIHostingController<NativeSubtitleOverlay>?
+    /// PGS/VobSub decoded from the original file by the coordinator; drawn by `BitmapSubtitleView`.
+    private(set) var bitmapSubtitle: BitmapSubtitleSource?
     private var skipTitle: String?
     private var audioMenuTracks: [PlayerTrack] = []
     private var subtitleMenuTracks: [PlayerTrack] = []
@@ -35,6 +37,12 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     private var lastProposalItemId: String?
     private var audibleGroup: AVMediaSelectionGroup?
     private var legibleGroup: AVMediaSelectionGroup?
+    /// What the engine itself last selected in AVFoundation's groups. `mediaSelectionDidChangeNotification` fires for
+    /// those changes too; only selections that differ from these come from the system's own menus.
+    private var appliedAudioOption: AVMediaSelectionOption?
+    private var appliedLegibleOption: AVMediaSelectionOption?
+    /// Jellyfin index of the subtitle currently rendered by AVFoundation itself (tx3g), if any.
+    private var systemRenderedSubtitle: Int?
     /// Subtitle cues for the overlay are provided by the coordinator via this closure.
     var subtitleTimelineProvider: (() -> SubtitleTimeline?)?
     var subtitleScale: Double = 1
@@ -260,11 +268,16 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     func stop() {
         teardownItemObservers()
+        bitmapSubtitle?.stop()
+        bitmapSubtitle = nil
         player.pause()
         player.replaceCurrentItem(with: nil)
         controller.contextualActions = []
         audibleGroup = nil
         legibleGroup = nil
+        appliedAudioOption = nil
+        appliedLegibleOption = nil
+        systemRenderedSubtitle = nil
         state = .idle
     }
 
@@ -291,6 +304,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         guard let ordinal = audioStreams.firstIndex(where: { $0.index == streamIndex }), ordinal < group.options.count else {
             return group.options.count <= 1 && request.audioStreamIndex == streamIndex
         }
+        appliedAudioOption = group.options[ordinal]
         item.select(group.options[ordinal], in: group)
         selectedAudio = streamIndex
         return true
@@ -299,25 +313,33 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     func selectSubtitle(streamIndex: Int?) -> Bool {
         guard let request, let item = player.currentItem else { return false }
         let legible = legibleGroup
+        func selectLegible(_ option: AVMediaSelectionOption?) {
+            guard let legible else { return }
+            appliedLegibleOption = option
+            item.select(option, in: legible)
+        }
         guard let streamIndex else {
-            if let legible { item.select(nil, in: legible) }
+            selectLegible(nil)
             selectedSubtitle = nil
+            systemRenderedSubtitle = nil
             return true
         }
         guard let stream = request.mediaSource.stream(index: streamIndex) else { return false }
         if stream.isBitmapSubtitle { return false }
         if request.externalSubtitles.contains(where: { $0.streamIndex == streamIndex }) {
             // Rendered by Vela's overlay; make sure no embedded track shows at the same time.
-            if let legible { item.select(nil, in: legible) }
+            selectLegible(nil)
             selectedSubtitle = streamIndex
+            systemRenderedSubtitle = nil
             return true
         }
         // Embedded text track (tx3g): pick by ordinal among embedded text subtitles.
         if let legible {
             let embedded = request.mediaSource.subtitleStreams.filter { $0.isExternal != true && $0.isTextSubtitle }
             if let ordinal = embedded.firstIndex(where: { $0.index == streamIndex }), ordinal < legible.options.count {
-                item.select(legible.options[ordinal], in: legible)
+                selectLegible(legible.options[ordinal])
                 selectedSubtitle = streamIndex
+                systemRenderedSubtitle = streamIndex
                 return true
             }
         }
@@ -328,27 +350,35 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     /// Jellyfin stream so the coordinator can report and remember it.
     private func systemMediaSelectionChanged() {
         guard let request, let item = player.currentItem else { return }
-        if let group = audibleGroup, let option = item.currentMediaSelection.selectedMediaOption(in: group),
-           let ordinal = group.options.firstIndex(of: option) {
-            let audioStreams = request.mediaSource.audioStreams
-            if ordinal < audioStreams.count {
-                let index = audioStreams[ordinal].index
-                if index != selectedAudio {
-                    selectedAudio = index
-                    delegate?.engine(self, requestsAudioTrack: index)
+        if let group = audibleGroup {
+            let option = item.currentMediaSelection.selectedMediaOption(in: group)
+            if option != appliedAudioOption, let option, let ordinal = group.options.firstIndex(of: option) {
+                appliedAudioOption = option
+                let audioStreams = request.mediaSource.audioStreams
+                if ordinal < audioStreams.count {
+                    let index = audioStreams[ordinal].index
+                    if index != selectedAudio {
+                        selectedAudio = index
+                        delegate?.engine(self, requestsAudioTrack: index)
+                    }
                 }
             }
         }
         if let group = legibleGroup {
+            let option = item.currentMediaSelection.selectedMediaOption(in: group)
+            guard option != appliedLegibleOption else { return } // our own change echoed back
+            appliedLegibleOption = option
             let embedded = request.mediaSource.subtitleStreams.filter { $0.isExternal != true && $0.isTextSubtitle }
-            if let option = item.currentMediaSelection.selectedMediaOption(in: group), let ordinal = group.options.firstIndex(of: option) {
+            if let option, let ordinal = group.options.firstIndex(of: option) {
                 if ordinal < embedded.count, embedded[ordinal].index != selectedSubtitle {
                     selectedSubtitle = embedded[ordinal].index
+                    systemRenderedSubtitle = selectedSubtitle
                     delegate?.engine(self, requestsSubtitleTrack: selectedSubtitle)
                 }
-            } else if let current = selectedSubtitle, embedded.contains(where: { $0.index == current }) {
-                // Switched off in the system menu.
+            } else if let current = systemRenderedSubtitle, current == selectedSubtitle {
+                // Switched off in the system menu; overlay-rendered tracks are never affected by it.
                 selectedSubtitle = nil
+                systemRenderedSubtitle = nil
                 delegate?.engine(self, requestsSubtitleTrack: nil)
             }
         }
@@ -426,7 +456,10 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
             }
             menus.append(UIMenu(title: L10n.audio, image: UIImage(systemName: "waveform"), children: actions))
         }
-        if subtitleMenuTracks.count > 1 {
+        // Progressive MP4 with tx3g tracks: the system shows those itself; a second menu would duplicate it.
+        let embeddedTextOnly = subtitleMenuTracks.allSatisfy { $0.streamIndex == nil || (!$0.isExternal && !$0.isBitmap) }
+        let systemShowsSubtitleMenu = (request?.isHLS == false) && (legibleGroup?.options.count ?? 0) > 0 && embeddedTextOnly
+        if subtitleMenuTracks.count > 1, !systemShowsSubtitleMenu {
             let actions = subtitleMenuTracks.map { track in
                 UIAction(title: track.title, subtitle: track.detail, state: track.streamIndex == selectedSubtitle ? .on : .off) { [weak self] _ in
                     Task { @MainActor [weak self] in
@@ -524,6 +557,12 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     private(set) var transportBarVisible = false
 
     func setControlsVisible(_ visible: Bool) {} // the system transport bar is handled via its delegate callback
+
+    func setBitmapSubtitle(_ source: BitmapSubtitleSource?) {
+        if bitmapSubtitle !== source { bitmapSubtitle?.stop() }
+        bitmapSubtitle = source
+        subtitleOverlay?.rootView = NativeSubtitleOverlay(engine: self)
+    }
 
     func appDidEnterBackground() { player.pause() }
     func appWillEnterForeground() {}

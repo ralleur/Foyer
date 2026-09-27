@@ -87,8 +87,21 @@ final class DecisionEngineTests: XCTestCase {
         XCTAssertEqual(d.subtitleHandling, .embedded)
     }
 
-    func test_PGS_selected_onHDR_prefersAdvancedOverBurnIn() {
+    func test_PGS_selected_onHDR_keepsHDRWithBitmapOverlay() {
+        // FFmpeg is linked: the PGS track is demuxed from the original file and drawn over the system player,
+        // so the HDR remux stays and nothing is burned in or tone-mapped.
         let d = decide(TestMedia.mkvHDRPGS, subtitle: 2)
+        XCTAssertEqual(d.route, .directStream)
+        XCTAssertEqual(d.subtitleHandling, .bitmapOverlay)
+        XCTAssertEqual(d.subtitleStreamIndex, 2)
+        XCTAssertFalse(d.deviceProfile.subtitleProfiles.contains { $0.method == .encode })
+        XCTAssertTrue(d.reasons.contains { $0.contains("drawn by Vela") }, d.reasons.joined(separator: "; "))
+    }
+
+    func test_PGS_selected_onHDR_withoutOverlay_prefersAdvancedOverBurnIn() {
+        var caps = DeviceCapabilities.appleTV4KHDR
+        caps.bitmapOverlayAvailable = false
+        let d = decide(TestMedia.mkvHDRPGS, subtitle: 2, caps: caps)
         XCTAssertEqual(d.route, .advancedDirectPlay)
         XCTAssertEqual(d.subtitleHandling, .embedded)
     }
@@ -100,6 +113,7 @@ final class DecisionEngineTests: XCTestCase {
     func test_PGS_selected_withoutAdvancedEngine_burnsIn() {
         var caps = DeviceCapabilities.appleTV4KHDR
         caps.advancedEngineAvailable = false
+        caps.bitmapOverlayAvailable = false
         let d = decide(TestMedia.mkvHDRPGS, subtitle: 2, caps: caps)
         XCTAssertEqual(d.route, .transcode)
         XCTAssertEqual(d.subtitleHandling, .burnIn)
@@ -109,6 +123,7 @@ final class DecisionEngineTests: XCTestCase {
     func test_PGS_selected_burnInDisabled_dropsSubtitle() {
         var caps = DeviceCapabilities.appleTV4KHDR
         caps.advancedEngineAvailable = false
+        caps.bitmapOverlayAvailable = false
         var prefs = PlaybackPreferences.default
         prefs.allowBurnInSubtitles = false
         let d = decide(TestMedia.mkvHDRPGS, subtitle: 2, prefs: prefs, caps: caps)
@@ -252,6 +267,7 @@ final class DecisionEngineTests: XCTestCase {
         // The tag condition must not be required: MKV sources have no codec tag and must stay remuxable (see DEVELOPMENT.md).
         XCTAssertTrue(p.codecProfiles.contains { $0.codec == "hevc" && $0.conditions.contains { $0.property == .videoCodecTag && !$0.isRequired } })
         XCTAssertTrue(p.subtitleProfiles.contains { $0.format == "srt" && $0.method == .external })
+        XCTAssertFalse(p.subtitleProfiles.contains { $0.method == .hls }, "text tracks are drawn by Vela, not offered as HLS renditions")
         XCTAssertFalse(p.subtitleProfiles.contains { $0.method == .encode })
         XCTAssertEqual(p.transcodingProfiles.first?.protocol, "hls")
         XCTAssertEqual(p.transcodingProfiles.first?.container, "mp4")

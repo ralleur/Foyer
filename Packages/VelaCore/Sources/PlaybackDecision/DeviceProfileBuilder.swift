@@ -138,9 +138,11 @@ public struct DeviceProfileBuilder: Sendable {
         ]
         profile.transcodingProfiles = [hlsTranscodingProfile]
         profile.codecProfiles = videoCodecProfiles(includeTagCondition: true)
+        // Text subtitles are fetched and drawn by Vela's own overlay only. Offering them as HLS renditions as well
+        // made AVPlayer show a second subtitle menu and fed every selection back through the media-selection
+        // notification, which switched the overlay off again (see DEVELOPMENT.md).
         var subs = textSubtitleProfiles(method: .external)
         subs.append(SubtitleProfile(format: "mov_text", method: .embed))
-        subs.append(contentsOf: textSubtitleProfiles(method: .hls))
         if allowBurnIn { subs.append(contentsOf: burnInSubtitleProfiles()) }
         profile.subtitleProfiles = subs
         return profile

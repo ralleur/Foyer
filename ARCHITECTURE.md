@@ -30,7 +30,7 @@ Vela/
   Features/Details         movie/episode detail, series/season/episode navigation
   Features/Search          debounced server search
   Features/Settings        settings, debug screens, licenses
-  Features/Player          PlaybackCoordinator, engines, overlay UI, subtitles, reporter, next-episode resolver
+  Features/Player          PlaybackCoordinator, engines, overlay UI, subtitles (text parser/overlay, FFmpeg bitmap source), reporter, next-episode resolver
 VelaTests/                app unit tests (fixture transport, mock engine); VelaUITests/ fixture UI tests + MockServerTour
 Tools/MockJellyfin         synthetic media generator + mock Jellyfin server for end-to-end runs (Scripts/e2e-mock.sh)
 ```

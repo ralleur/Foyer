@@ -35,6 +35,7 @@ enum DeviceCapabilityProbe {
         caps.maxOutputChannels = max(2, session.maximumOutputNumberOfChannels)
         caps.supportsDolbyPassthrough = true
         caps.advancedEngineAvailable = advancedEngineAvailable
+        caps.bitmapOverlayAvailable = true // FFmpeg (via MPVKit) demuxes and decodes PGS/VobSub for the overlay
         caps.advancedEngineSupportsHDROutput = false
         return caps
     }

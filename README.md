@@ -3,7 +3,7 @@
 Vela is a native tvOS app for [Jellyfin](https://jellyfin.org). It is built around one idea: turn on the TV, open the app, pick something, press play, and it plays — in the best quality the Apple TV can produce, with as little server work as possible.
 
 - **Direct play first.** MP4/MOV goes straight to the system player (HDR10, HLG, Dolby Vision, Dolby passthrough). MKV, DTS, TrueHD, FLAC, Opus, ASS and PGS are handled on the Apple TV by an mpv/FFmpeg engine. The server only remuxes or transcodes when nothing else works, and every decision is logged with its reasons.
-- **Subtitles are first class.** SRT/ASS/VTT are rendered locally (no "Preparing subtitles…"), PGS/VobSub by the advanced engine, forced/SDH/default flags and language preferences are respected, delay is adjustable.
+- **Subtitles are first class.** SRT/ASS/VTT are rendered locally (no "Preparing subtitles…"), PGS/VobSub are decoded from the original file and drawn over the system player so HDR titles keep their picture, forced/SDH/default flags and language preferences are respected, delay is adjustable.
 - **Made for the couch.** Continue Watching, Next Up, series that know where you left off, skip intro / next episode, trickplay previews while scrubbing, a quiet 10-foot UI in German and English.
 - **Honest engineering.** No mock data in the product, no buttons without function, structured logs without secrets, a debug screen that tells you exactly what is being played and why.
 
@@ -95,7 +95,7 @@ Sign in with username/password or **Quick Connect** (Settings › Quick Connect 
 | Details | Backdrop + logo, metadata, overview, cast, similar titles, versions picker, watched/favorite toggles, technical info sheet. |
 | Series | Season chips that load episodes on focus, episode rows with progress, primary button = "Continue S2 E3" / "Play S1 E1". |
 | Search | Server search across movies, shows and episodes with debounce; tvOS keyboard and dictation. |
-| Player (native) | System transport bar, chapter markers, info panel, *Skip Intro* contextual action, next-episode proposal with autoplay, Jellyfin audio/subtitle menus, local text-subtitle overlay, frame-rate/HDR matching. |
+| Player (native) | System transport bar, chapter markers, info panel, *Skip Intro* contextual action, next-episode proposal with autoplay, Jellyfin audio/subtitle menus, local text-subtitle overlay, PGS/VobSub overlay decoded from the original file, local text-subtitle overlay, frame-rate/HDR matching. |
 | Player (advanced) | Click for controls, swipe to scrub with trickplay previews, swipe down for info/audio/subtitles/chapters, skip pill, next-episode countdown card, subtitle/audio delay, debug HUD. |
 | Watch state | Start/progress/stop reporting, resume anywhere, remembered audio language per series. |
 | Settings | Account/server, audio & subtitle languages and behaviour, subtitle size, streaming quality, direct play mode, advanced player mode, autoplay, debug tools (logs, capabilities, last decision, cache). |

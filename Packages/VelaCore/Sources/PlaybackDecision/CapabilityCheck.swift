@@ -78,6 +78,8 @@ public enum NativeCapability {
         if let subtitle {
             if subtitle.isTextSubtitle {
                 notes.append("\(subtitle.technicalLabel) subtitles rendered by Vela")
+            } else if caps.bitmapOverlayAvailable {
+                notes.append("\(subtitle.technicalLabel) subtitles decoded from the original file and drawn by Vela")
             } else {
                 subtitleOK = false
                 blockers.append("\(subtitle.technicalLabel) subtitles are bitmaps; AVFoundation cannot render them")

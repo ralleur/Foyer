@@ -11,7 +11,7 @@ Priorities, in order: reliability → picture and sound quality → direct play 
 | Video | H.264 (8-bit ≤ L5.2), HEVC Main/Main 10 (hvc1/dvh1 tag), AV1 (hardware only), MPEG-4 Part 2 | H.264/HEVC via VideoToolbox, AV1/VP9 hardware or software ≤ 1080p, MPEG-2/4, VC-1 |
 | HDR | HDR10, HDR10+, HLG, Dolby Vision P5 and P8 (P7 dual-layer: the server strips RPU/EL and the HDR10 base layer is played) | Tone-mapped to SDR (libplacebo bt.2446a); DV P5 reshaped by libdovi |
 | Audio | AAC, AC-3, E-AC-3 (+Atmos JOC passthrough), ALAC, FLAC, MP3, PCM | Everything FFmpeg decodes (DTS, DTS-HD, TrueHD, FLAC, Opus, Vorbis, …) → multichannel PCM |
-| Subtitles | tx3g embedded (system menu); SRT/ASS/VTT fetched from the server and drawn by Vela's overlay; bitmap → engine switch | Everything via libass (ASS styling, embedded fonts) and bitmap decoders (PGS, VobSub, DVB) |
+| Subtitles | tx3g embedded (system menu); SRT/ASS/VTT fetched from the server and drawn by Vela's overlay; PGS/VobSub/DVB demuxed from the original file with FFmpeg and drawn by Vela's overlay | Everything via libass (ASS styling, embedded fonts) and bitmap decoders (PGS, VobSub, DVB) |
 | UI | System transport bar, info panel, chapters, contextual *Skip Intro*, next-episode proposal, custom audio/subtitle menus | Vela overlay: click for controls, swipe to scrub (trickplay previews), swipe down for panel, skip pill, countdown card, delays, debug HUD |
 | Frame-rate matching | `appliesPreferredDisplayCriteriaAutomatically` | `AVDisplayCriteria(refreshRate:formatDescription:)` (tvOS 17) |
 
@@ -45,6 +45,8 @@ Every decision carries `reasons` (positive facts and blockers of the other engin
 
 A seek keeps its target until the engine confirms it: AVPlayer reports the old position for a moment, and if the stream fails during the seek the next route resumes at the target, not before it.
 
+Server streams are warmed up before AVPlayer loads them (`HLSWarmup`: master, media playlist, init and first segment, up to 45 s), because Jellyfin needs a moment to seek and produce the first segment of a large file and AVPlayer waits only a few seconds. A stream abandoned before its start report cancels the server job so it does not compete with the retry.
+
 ### Fallback chain
 
 If an engine fails to open or play (`didFail`), the coordinator stops the session, re-runs preparation at the last position (or at the originally requested position when no frame was shown yet) with the next route in `[other engine's direct play, Direct Stream, Transcode]` that has not been tried, and asks the server again with `EnableDirectPlay=false` for server routes. Only when the chain is exhausted does the user see an error (with the technical reason under Debug).
@@ -72,8 +74,10 @@ The advanced engine treats an end-of-file that arrives long before the known dur
 
 - Selection (`SubtitleMode`): *off*; *forced only*; *smart* (default: forced track in the audio language when the audio is in the primary preferred language, full subtitles in a preferred language otherwise; unknown audio language counts as understood); *always*. SDH preference and default flags are honoured; external tracks are preferred less than embedded ones on ties.
 - Native engine: text tracks are fetched as `/Videos/{item}/{source}/Subtitles/{index}/0/Stream.{srt|ass|vtt}` (or the server's `DeliveryUrl`), parsed by `SubtitleParser` (SRT, WebVTT incl. cue settings, ASS dialogue with override tags stripped and top-alignment detected) and rendered by `SubtitleCueView` (10 Hz clock, italics kept, lifted while the transport bar is visible, size from Settings, delay applied). Bitmap tracks trigger an engine switch at the current position.
+- Native engine, bitmap tracks (`SubtitleHandling.bitmapOverlay`): `BitmapSubtitleSource` opens the original file (`/Videos/{item}/stream?static=true`) with FFmpeg's libavformat on a background thread, reads it about two minutes ahead of the playhead, decodes the selected PGS/VobSub/DVB packets with libavcodec into RGBA images and `BitmapSubtitleView` draws them at their canvas coordinates, fitted into the picture like the video itself. Seeks reposition the demuxer through the container index. The server is asked for the stream with `SubtitleStreamIndex = -1`, so the remux stays untouched and nothing is burned in. Cost: the file travels over the network a second time while playing (its own bitrate); the decoded frames are tiny.
+- Text subtitles are never offered as HLS renditions: AVPlayer would show a second subtitle menu and its media-selection notification undid every choice made in Vela's menu (see DEVELOPMENT.md).
 - Advanced engine: libass with embedded fonts and original ASS styling (`sub-ass-override=no`), PGS/VobSub/DVB via FFmpeg, external text via `sub-add`. Delay via `sub-delay`.
-- The server only burns subtitles in when the advanced engine is unavailable and the user allows it.
+- The server only burns subtitles in when neither the advanced engine nor the bitmap overlay is available and the user allows it.
 
 ## HDR and frame rate
 
@@ -116,8 +120,8 @@ Expected route with default settings on an Apple TV 4K with an HDR display (`Dec
 | MKV HEVC + TrueHD (SDR) | Advanced Direct Play | 7.1 PCM out |
 | MKV HEVC HDR10 + TrueHD | Direct Stream | compromise: TrueHD → E-AC-3 by the server |
 | ASS subtitles (MKV) | Advanced Direct Play, embedded | libass styling |
-| PGS subtitles selected on HDR MKV | Advanced Direct Play | subtitles beat HDR |
-| PGS selected, advanced engine unavailable | Transcode (burn-in) | or Direct Stream with subtitle dropped when burn-in is off |
+| PGS subtitles selected on HDR MKV | Direct Stream + bitmap overlay | HDR kept; PGS decoded from the original file and drawn by Vela |
+| PGS selected, advanced engine and overlay unavailable | Transcode (burn-in) | or Direct Stream with subtitle dropped when burn-in is off |
 | MP4 HEVC tagged `hev1` | Advanced Direct Play (SDR); Direct Stream when advanced engine is off | tag fixed by remux |
 | Forced subtitles + German audio | Native/Advanced with forced track | `TrackSelectorTests` |
 | Multiple audio tracks (TrueHD en, E-AC-3 de, DTS-HD en) | German E-AC-3 chosen | commentary avoided |
