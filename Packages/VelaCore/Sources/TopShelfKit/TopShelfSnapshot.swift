@@ -122,9 +122,10 @@ public enum TopShelfLoader {
     }
 }
 
-/// Shared state between the app and the Top Shelf extension, stored as JSON files in the App Group
-/// container. Holds no secrets: the access token stays in the (shared) Keychain.
-public struct TopShelfStore: Sendable {
+/// Shared state between the app and the Top Shelf extension, stored in the App Group's user defaults
+/// (tvOS keeps no files outside Caches on a real device). Holds no secrets: the access token stays in
+/// the shared Keychain.
+public struct TopShelfStore: @unchecked Sendable {
     /// The signed-in account the extension should load for.
     public struct Account: Codable, Hashable, Sendable {
         public var accountId: String
@@ -152,46 +153,44 @@ public struct TopShelfStore: Sendable {
         }
     }
 
-    public let directory: URL
+    private let defaults: UserDefaults
+    private let accountKey = "vela.topshelf.account"
+    private let snapshotKey = "vela.topshelf.snapshot"
 
-    public init(directory: URL) {
-        self.directory = directory
+    public init(defaults: UserDefaults) {
+        self.defaults = defaults
     }
 
-    private var accountURL: URL { directory.appendingPathComponent("topshelf-account.json") }
-    private var snapshotURL: URL { directory.appendingPathComponent("topshelf-snapshot.json") }
-
-    public func loadAccount() -> Account? { read(Account.self, from: accountURL) }
+    public func loadAccount() -> Account? { read(Account.self, key: accountKey) }
 
     /// Replaces the account; a different (or no) account also drops the old snapshot.
     public func saveAccount(_ account: Account?) {
         guard let account else {
-            try? FileManager.default.removeItem(at: accountURL)
-            try? FileManager.default.removeItem(at: snapshotURL)
+            defaults.removeObject(forKey: accountKey)
+            defaults.removeObject(forKey: snapshotKey)
             return
         }
-        if loadAccount()?.accountId != account.accountId { try? FileManager.default.removeItem(at: snapshotURL) }
-        write(account, to: accountURL)
+        if loadAccount()?.accountId != account.accountId { defaults.removeObject(forKey: snapshotKey) }
+        write(account, key: accountKey)
     }
 
     /// The last snapshot, only if it belongs to the stored account.
     public func loadSnapshot() -> TopShelfSnapshot? {
-        guard let account = loadAccount(), let snapshot = read(TopShelfSnapshot.self, from: snapshotURL),
+        guard let account = loadAccount(), let snapshot = read(TopShelfSnapshot.self, key: snapshotKey),
               snapshot.accountId == account.accountId else { return nil }
         return snapshot
     }
 
     public func saveSnapshot(_ snapshot: TopShelfSnapshot) {
-        write(snapshot, to: snapshotURL)
+        write(snapshot, key: snapshotKey)
     }
 
-    private func read<T: Decodable>(_ type: T.Type, from url: URL) -> T? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
+    private func read<T: Decodable>(_ type: T.Type, key: String) -> T? {
+        guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
     }
 
-    private func write(_ value: some Encodable, to url: URL) {
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(value) { try? data.write(to: url, options: .atomic) }
+    private func write(_ value: some Encodable, key: String) {
+        if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
     }
 }

@@ -12,7 +12,7 @@ Packages/VelaCore         Swift package, builds on Linux and Apple platforms
   Sources/PlaybackDecision DeviceCapabilities, capability checks, PlaybackDecisionEngine, DeviceProfileBuilder,
                            TrackSelector, SubtitleParser/Timeline, TrickplayGeometry, SkipSegmentPolicy,
                            NextEpisodeCountdownPolicy, ProgressReportPolicy, ResumePolicy
-  Sources/TopShelfKit      VelaLink (vela:// deep links), TopShelfSnapshot/Builder/Loader, TopShelfStore (App Group files)
+  Sources/TopShelfKit      VelaLink (vela:// deep links), TopShelfSnapshot/Builder/Loader, TopShelfStore (App Group user defaults)
   Tests/                   112 unit tests incl. the media test matrix and the session-socket protocol
 Vela/
   App/                     VelaApp, AppEnvironment (DI container), RootView/MainTabView, Navigation
@@ -64,7 +64,7 @@ SwiftUI views ── observe ──▶ view models (@Observable, @MainActor)
 ## Session and security
 
 - Tokens live in the Keychain (`KeychainStore`, generic password, after-first-unlock) in the App Group access group `group.com.ralleur.vela`, so the Top Shelf extension can read them; tokens from older builds move there on first read. Account metadata (server URL, user id/name) lives in UserDefaults.
-- The Top Shelf extension loads live (resume, next up, latest per library) with the app's device id and token; the App Group holds only the active account's non-secret metadata and the last snapshot as offline fallback. Items link back with `vela://play/<id>` (resume) and `vela://item/<id>` (details on the Home tab). Top Shelf artwork uses plain image URLs (Jellyfin serves item images anonymously).
+- The Top Shelf extension loads live (resume, next up, latest per library) with the app's device id and token; the App Group user defaults hold only the active account's non-secret metadata and the last snapshot as offline fallback (tvOS devices keep no files outside Caches). Items link back with `vela://play/<id>` (resume) and `vela://item/<id>` (details on the Home tab). Top Shelf artwork uses plain image URLs (Jellyfin serves item images anonymously).
 - `JellyfinClient` is a thread-safe class holding the token; it registers the token with the logger so it is redacted anywhere.
 - A 401 on an authenticated request triggers `onSessionExpired`, which drops the token and shows onboarding with the server pre-filled.
 - Server URL input is normalised by `ServerAddress` (https first, then http; explicit schemes respected; other schemes rejected). No certificate validation is disabled.

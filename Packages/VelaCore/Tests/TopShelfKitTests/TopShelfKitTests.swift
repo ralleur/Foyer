@@ -119,9 +119,10 @@ final class TopShelfLoaderTests: XCTestCase {
 
 final class TopShelfStoreTests: XCTestCase {
     func testAccountSwitchDropsSnapshot() throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let store = TopShelfStore(directory: dir)
+        let suite = "topshelf-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = TopShelfStore(defaults: defaults)
         let account = TopShelfStore.Account(accountId: "a", serverURL: URL(string: "http://jf")!, userId: "u", tokenKey: "token.a",
                                             deviceId: "d", deviceName: "Wohnzimmer", clientVersion: "1.0")
         XCTAssertNil(store.loadSnapshot())

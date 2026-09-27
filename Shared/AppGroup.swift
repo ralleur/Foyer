@@ -10,7 +10,9 @@ enum AppGroup {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
     }
 
+    /// nil without the entitlement, so unsigned builds never write into their own defaults by mistake.
     static var topShelfStore: TopShelfStore? {
-        containerURL.map { TopShelfStore(directory: $0.appendingPathComponent("Library/Application Support/TopShelf", isDirectory: true)) }
+        guard containerURL != nil, let defaults = UserDefaults(suiteName: identifier) else { return nil }
+        return TopShelfStore(defaults: defaults)
     }
 }
