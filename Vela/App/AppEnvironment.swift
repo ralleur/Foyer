@@ -15,6 +15,8 @@ final class AppEnvironment {
     private(set) var capabilities: DeviceCapabilities
     /// The playback session currently on screen (nil when no player is presented).
     var playback: PlaybackCoordinator?
+    /// Detail screen requested by a deep link; Home pushes it and clears it.
+    var pendingDetail: BaseItem?
     /// Session WebSocket for "Play on this device" and play-state commands from other clients.
     let remoteControl = RemoteControlService()
     /// Set when the app runs under UI tests with canned server responses.
@@ -68,6 +70,9 @@ final class AppEnvironment {
         }
         let sessionStore = SessionStore(transportFactory: transportFactory, keychain: isUITest ? InMemoryKeychain() : KeychainStore())
         if isUITest { sessionStore.installUITestSession() }
+        TopShelfSync.isEnabled = !isUITest
+        sessionStore.onActiveAccountPersisted = { TopShelfSync.activeAccountChanged($0) }
+        TopShelfSync.activeAccountChanged(sessionStore.active?.account)
 
         let images = ImagePipeline()
         let environment = AppEnvironment(preferences: preferences, sessionStore: sessionStore, images: images, logBuffer: AppLog.buffer,

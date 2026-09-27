@@ -10,41 +10,66 @@ protocol SecretStore: Sendable {
 
 /// Generic-password Keychain wrapper. Tokens never touch UserDefaults.
 ///
+/// Items live in the App Group's access group so the Top Shelf extension can read the token;
+/// tokens saved by older builds (app-only access group) move there the first time they are read.
+///
 /// Unsigned simulator builds (no entitlements, e.g. `xcodebuild … CODE_SIGNING_ALLOWED=NO`) get
 /// `errSecMissingEntitlement` from the Keychain; there — and only there — tokens fall back to a
 /// file in the simulator's app container so sessions survive relaunches during development.
 struct KeychainStore: SecretStore {
     private let service = "app.vela.tv.credentials"
+    var accessGroup: String? = AppGroup.identifier
 
     func set(_ value: String, for key: String) {
-        let data = Data(value.utf8)
-        var query = baseQuery(key)
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
-        if status == errSecSuccess {
-            let update: [CFString: Any] = [kSecValueData: data]
-            let result = SecItemUpdate(query as CFDictionary, update as CFDictionary)
-            if result != errSecSuccess { Log.error(.jellyfin, "Keychain update failed: \(result)") }
-        } else {
-            query[kSecValueData] = data
-            query[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
-            let result = SecItemAdd(query as CFDictionary, nil)
-            if result == errSecMissingEntitlement, let fallback = SimulatorSecretFile.shared {
-                Log.warning(.jellyfin, "Keychain unavailable in this unsigned simulator build; using the simulator fallback store")
-                fallback.set(value, for: key)
-            } else if result != errSecSuccess {
-                Log.error(.jellyfin, "Keychain add failed: \(result)")
-            }
+        // Remove the item from whichever access group holds it, then add it to the shared one.
+        _ = SecItemDelete(baseQuery(key) as CFDictionary)
+        var result = add(value, for: key, accessGroup: accessGroup)
+        if result == errSecMissingEntitlement, accessGroup != nil {
+            Log.notice(.jellyfin, "Keychain access group \(accessGroup ?? "") unavailable; token stays app-only (no live Top Shelf)")
+            result = add(value, for: key, accessGroup: nil)
         }
+        if result == errSecMissingEntitlement, let fallback = SimulatorSecretFile.shared {
+            Log.warning(.jellyfin, "Keychain unavailable in this unsigned simulator build; using the simulator fallback store")
+            fallback.set(value, for: key)
+        } else if result != errSecSuccess {
+            Log.error(.jellyfin, "Keychain add failed: \(result)")
+        }
+    }
+
+    /// Copies the item into the shared group first and removes the old copy only once that worked.
+    private func migrate(_ value: String, for key: String, from oldGroup: String, to newGroup: String) {
+        let result = add(value, for: key, accessGroup: newGroup)
+        guard result == errSecSuccess || result == errSecDuplicateItem else {
+            Log.notice(.jellyfin, "Token stays in the app-only Keychain group (\(result)); Top Shelf will use the last snapshot")
+            return
+        }
+        var old = baseQuery(key)
+        old[kSecAttrAccessGroup] = oldGroup
+        _ = SecItemDelete(old as CFDictionary)
+        Log.info(.jellyfin, "Moved token \(key) into the shared Keychain access group")
+    }
+
+    private func add(_ value: String, for key: String, accessGroup: String?) -> OSStatus {
+        var query = baseQuery(key)
+        query[kSecValueData] = Data(value.utf8)
+        query[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        if let accessGroup { query[kSecAttrAccessGroup] = accessGroup }
+        return SecItemAdd(query as CFDictionary, nil)
     }
 
     func get(_ key: String) -> String? {
         var query = baseQuery(key)
         query[kSecReturnData] = true
+        query[kSecReturnAttributes] = true
         query[kSecMatchLimit] = kSecMatchLimitOne
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecSuccess, let data = item as? Data {
-            return String(data: data, encoding: .utf8)
+        if status == errSecSuccess, let attributes = item as? [CFString: Any], let data = attributes[kSecValueData] as? Data,
+           let value = String(data: data, encoding: .utf8) {
+            if let accessGroup, let oldGroup = attributes[kSecAttrAccessGroup] as? String, oldGroup != accessGroup {
+                migrate(value, for: key, from: oldGroup, to: accessGroup)
+            }
+            return value
         }
         return SimulatorSecretFile.shared?.get(key)
     }

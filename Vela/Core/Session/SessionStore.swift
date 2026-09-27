@@ -20,6 +20,8 @@ final class SessionStore {
     private(set) var active: ActiveSession?
     /// Set when the server rejected the token; the UI offers to sign in again.
     var expiredAccount: ServerAccount?
+    /// Told about the active account on every save (feeds the Top Shelf extension).
+    var onActiveAccountPersisted: ((ServerAccount?) -> Void)?
 
     private let defaults: UserDefaults
     private let keychain: any SecretStore
@@ -50,6 +52,7 @@ final class SessionStore {
             defaults.set(data, forKey: accountsKey)
         }
         defaults.set(active?.account.id, forKey: activeKey)
+        onActiveAccountPersisted?(active?.account)
     }
 
     // MARK: Client construction

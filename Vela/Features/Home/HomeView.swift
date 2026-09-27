@@ -22,6 +22,12 @@ struct HomeView: View {
             guard let session = environment.sessionStore.active else { return }
             await model.loadIfNeeded(session: session, libraries: libraries)
         }
+        .task(id: environment.pendingDetail?.id) {
+            guard let item = environment.pendingDetail else { return }
+            environment.pendingDetail = nil
+            path = NavigationPath()
+            path.append(item)
+        }
         .onChange(of: environment.playback == nil) { _, playerClosed in
             // Returning from the player: refresh Continue Watching.
             if playerClosed, let session = environment.sessionStore.active {

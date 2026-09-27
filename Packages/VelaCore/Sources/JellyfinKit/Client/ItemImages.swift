@@ -1,11 +1,14 @@
 import Foundation
-import JellyfinKit
 
 /// Chooses the right Jellyfin artwork (with sensible fallbacks) for a given card type.
-struct ItemImages {
-    let client: JellyfinClient
+public struct ItemImages: Sendable {
+    public let client: JellyfinClient
 
-    func poster(_ item: BaseItem, width: Int) -> URL? {
+    public init(client: JellyfinClient) {
+        self.client = client
+    }
+
+    public func poster(_ item: BaseItem, width: Int) -> URL? {
         if item.isEpisode {
             if let seriesId = item.seriesId, let tag = item.seriesPrimaryImageTag {
                 return client.imageURL(itemId: seriesId, type: .primary, tag: tag, maxWidth: width)
@@ -24,7 +27,7 @@ struct ItemImages {
     }
 
     /// 16:9 artwork: episode stills, series/movie thumbs, backdrops.
-    func landscape(_ item: BaseItem, width: Int) -> URL? {
+    public func landscape(_ item: BaseItem, width: Int) -> URL? {
         if item.isEpisode, let tag = item.primaryImageTag {
             return client.imageURL(itemId: item.id, type: .primary, tag: tag, maxWidth: width)
         }
@@ -46,7 +49,7 @@ struct ItemImages {
         return poster(item, width: width)
     }
 
-    func backdrop(_ item: BaseItem, width: Int = 1920) -> URL? {
+    public func backdrop(_ item: BaseItem, width: Int = 1920) -> URL? {
         if let tag = item.firstBackdropTag {
             return client.imageURL(itemId: item.id, type: .backdrop, tag: tag, maxWidth: width, index: 0)
         }
@@ -59,7 +62,7 @@ struct ItemImages {
         return nil
     }
 
-    func logo(_ item: BaseItem, width: Int = 800) -> URL? {
+    public func logo(_ item: BaseItem, width: Int = 800) -> URL? {
         if let tag = item.logoImageTag {
             return client.imageURL(itemId: item.id, type: .logo, tag: tag, maxWidth: width)
         }
@@ -70,12 +73,12 @@ struct ItemImages {
         return nil
     }
 
-    func person(_ person: Person, width: Int = 300) -> URL? {
+    public func person(_ person: Person, width: Int = 300) -> URL? {
         guard let id = person.id, let tag = person.primaryImageTag else { return nil }
         return client.imageURL(itemId: id, type: .primary, tag: tag, maxWidth: width)
     }
 
-    func chapter(_ item: BaseItem, index: Int, tag: String?, width: Int = 480) -> URL? {
+    public func chapter(_ item: BaseItem, index: Int, tag: String?, width: Int = 480) -> URL? {
         guard let tag else { return nil }
         return client.imageURL(itemId: item.id, type: .chapter, tag: tag, maxWidth: width, index: index)
     }

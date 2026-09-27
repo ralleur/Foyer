@@ -708,8 +708,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_empty(404)
             return 404
 
-        # Media URLs (token via api_key) and everything else requires the token.
-        if not self.authorized(query):
+        # Media URLs (token via api_key) and everything else requires the token. Item images are
+        # anonymous like on a real server (the Apple TV home screen loads Top Shelf art without headers).
+        is_image = len(lparts) >= 4 and lparts[0] == "items" and lparts[2] == "images"
+        if not is_image and not self.authorized(query):
             self.send_empty(401)
             return 401
 

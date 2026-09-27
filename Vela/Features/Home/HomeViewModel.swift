@@ -99,6 +99,10 @@ final class HomeViewModel {
             sections = fresh
             lastLoaded = Date()
             HomeSnapshot.save(fresh, accountId: session.account.id)
+            if let resume = resumeItems.value {
+                TopShelfSync.publish(accountId: session.account.id, resume: resume, nextUp: nextUpItems.value ?? [],
+                                     latest: latest.map(\.1), client: client)
+            }
         }
     }
 
