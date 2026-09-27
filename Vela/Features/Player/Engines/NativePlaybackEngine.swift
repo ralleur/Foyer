@@ -86,7 +86,8 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         didStartPlaying = false
         setState(.loading)
 
-        let asset = AVURLAsset(url: request.url)
+        // Same User-Agent as the HLS warm-up, so AVPlayer picks up the server job the warm-up started.
+        let asset = AVURLAsset(url: request.url, options: [AVURLAssetHTTPUserAgentKey: DeviceInfo.httpUserAgent])
         let item = AVPlayerItem(asset: asset)
         item.preferredForwardBufferDuration = 0 // let AVFoundation size the buffer for the bitrate
         item.externalMetadata = metadata(for: request)

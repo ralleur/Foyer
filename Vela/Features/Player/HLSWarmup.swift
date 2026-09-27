@@ -1,7 +1,7 @@
 import Foundation
 import VelaFoundation
 
-/// Fetches an HLS master playlist, its first media playlist and that playlist's first segment before the
+/// Fetches an HLS master playlist, its first media playlist and the segment playback starts in before the
 /// system player loads the URL. Jellyfin produces segments on demand; on a slow disk the first one can take
 /// longer than AVPlayer is willing to wait (`-12889 No response for media file`), so Vela waits instead.
 enum HLSWarmup {
@@ -12,6 +12,7 @@ enum HLSWarmup {
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout * 2
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.httpAdditionalHeaders = ["User-Agent": DeviceInfo.httpUserAgent] // must match AVPlayer's (see DeviceInfo)
         return URLSession(configuration: config)
     }()
 
@@ -24,21 +25,12 @@ enum HLSWarmup {
             let masterText = try await text(master)
             guard let mediaURL = firstURI(in: masterText, relativeTo: master) else { return }
             let mediaText = try await text(mediaURL)
-            var targets: [URL] = []
-            // The media segment first: it starts the server job at the right position; the init segment
-            // (EXT-X-MAP) only exists once a job runs.
-            if let segment = segmentURI(in: mediaText, at: start), let url = URL(string: segment, relativeTo: mediaURL)?.absoluteURL {
-                targets.append(url)
-            }
-            if let map = mediaText.range(of: #"#EXT-X-MAP:URI="([^"]+)""#, options: .regularExpression) {
-                let uri = String(mediaText[map]).replacingOccurrences(of: #"#EXT-X-MAP:URI=""#, with: "").dropLast()
-                if let url = URL(string: String(uri), relativeTo: mediaURL)?.absoluteURL { targets.append(url) }
-            }
-            for target in targets {
-                var request = URLRequest(url: target)
-                request.setValue("bytes=0-0", forHTTPHeaderField: "Range") // the server waits for the segment, we do not need its bytes
-                _ = try await session.data(for: request)
-            }
+            // Only the media segment: it starts the server job at the right position and the job writes the
+            // init segment itself.
+            guard let segment = segmentURI(in: mediaText, at: start), let target = URL(string: segment, relativeTo: mediaURL)?.absoluteURL else { return }
+            var request = URLRequest(url: target)
+            request.setValue("bytes=0-0", forHTTPHeaderField: "Range") // the server waits for the segment, we do not need its bytes
+            _ = try await session.data(for: request)
             let elapsed = Date().timeIntervalSince(started)
             if elapsed > 1.5 { Log.info(.playback, "HLS warm-up: segment at \(Int(start)) s ready after \(String(format: "%.1f", elapsed)) s") }
         } catch {

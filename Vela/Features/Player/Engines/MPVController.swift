@@ -16,7 +16,7 @@ final class MPVController: @unchecked Sendable {
         var cacheSeconds: Double = 30
         var demuxerMaxBytes = 200 * 1024 * 1024
         var demuxerBackBytes = 60 * 1024 * 1024
-        var userAgent = "Vela/\(DeviceInfo.appVersion) (Apple TV)"
+        var userAgent = DeviceInfo.httpUserAgent
     }
 
     enum Event {

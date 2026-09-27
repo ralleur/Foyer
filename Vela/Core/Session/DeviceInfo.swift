@@ -19,6 +19,10 @@ enum DeviceInfo {
         return "\(short) (\(build))"
     }
 
+    /// One User-Agent for every media request. Jellyfin keys its remux jobs on it, so the HLS warm-up and
+    /// AVPlayer only share the job (instead of starting a second one from 0:00) when both send the same value.
+    static var httpUserAgent: String { "Vela/\(appVersion) (Apple TV)" }
+
     /// "AppleTV14,1" style identifier.
     static var modelIdentifier: String {
         var systemInfo = utsname()
