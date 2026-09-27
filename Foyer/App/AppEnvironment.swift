@@ -19,6 +19,10 @@ final class AppEnvironment {
     let remoteControl = RemoteControlService()
     /// Set when the app runs under UI tests with canned server responses.
     let isUITest: Bool
+    #if DEBUG
+    /// `-play-url <url>`: show a stock AVPlayer for this URL instead of the app (device diagnostics).
+    var debugPlayURL: URL?
+    #endif
 
     init(preferences: Preferences, sessionStore: SessionStore, images: ImagePipeline, logBuffer: LogBuffer,
          capabilities: DeviceCapabilities, isUITest: Bool) {
@@ -64,8 +68,13 @@ final class AppEnvironment {
         if isUITest { sessionStore.installUITestSession() }
 
         let images = ImagePipeline()
-        return AppEnvironment(preferences: preferences, sessionStore: sessionStore, images: images, logBuffer: AppLog.buffer,
-                              capabilities: capabilities, isUITest: isUITest)
+        let environment = AppEnvironment(preferences: preferences, sessionStore: sessionStore, images: images, logBuffer: AppLog.buffer,
+                                         capabilities: capabilities, isUITest: isUITest)
+        #if DEBUG
+        environment.debugPlayURL = UserDefaults.standard.string(forKey: "play-url").flatMap(URL.init(string:))
+        if let url = environment.debugPlayURL { Log.notice(.ui, "Debug URL player requested for \(url.absoluteString)") }
+        #endif
+        return environment
     }
 
     var client: JellyfinClient? { sessionStore.active?.client }

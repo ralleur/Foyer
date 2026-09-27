@@ -10,7 +10,8 @@ actor SubtitleLoader {
     private var inflight: [URL: Task<SubtitleTimeline, any Error>] = [:]
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 20
+        // Jellyfin extracts embedded subtitles from the file on first request; a 4K remux can take a minute.
+        config.timeoutIntervalForRequest = 120
         config.requestCachePolicy = .returnCacheDataElseLoad
         return URLSession(configuration: config)
     }()

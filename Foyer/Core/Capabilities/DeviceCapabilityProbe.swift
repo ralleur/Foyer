@@ -46,12 +46,20 @@ enum AudioSessionController {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .moviePlayback, options: [])
-            try session.setActive(true)
             let maxChannels = session.maximumOutputNumberOfChannels
-            if maxChannels > 2 {
-                try session.setPreferredOutputNumberOfChannels(maxChannels)
+            // HDMI reports up to 32 channels on tvOS 26. Asking for more than the 8 PCM channels HDMI carries breaks
+            // the system player: every AVPlayer item with audio then fails right after playback starts
+            // (CoreMediaErrorDomain 'nope'). Preferences must be set before the session is activated.
+            var preferred = min(maxChannels, 8)
+            #if DEBUG
+            if let override = UserDefaults.standard.string(forKey: "audio-channels").flatMap(Int.init) { preferred = override } // 0 = route default
+            #endif
+            if preferred > 0 {
+                try session.setPreferredOutputNumberOfChannels(preferred)
             }
-            Log.info(.audio, "Audio session ready: \(session.outputNumberOfChannels)/\(maxChannels) channels, route \(session.currentRoute.outputs.map(\.portType.rawValue))")
+            try session.setActive(true)
+            let outputs = session.currentRoute.outputs.map { "\($0.portType.rawValue)(\($0.channels?.count ?? 0)ch)" }
+            Log.info(.audio, "Audio session ready: output \(session.outputNumberOfChannels) ch (max \(maxChannels), preferred \(preferred)), \(Int(session.sampleRate)) Hz, route \(outputs)")
         } catch {
             Log.error(.audio, "Audio session configuration failed: \(error)")
         }

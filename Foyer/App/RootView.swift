@@ -6,12 +6,23 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            if let url = environment.debugPlayURL {
+                DebugURLPlayerScreen(url: url).ignoresSafeArea()
+            } else if let session = environment.sessionStore.active {
+                MainTabView(session: session)
+                    .id(session.account.id)
+            } else {
+                OnboardingFlow()
+            }
+            #else
             if let session = environment.sessionStore.active {
                 MainTabView(session: session)
                     .id(session.account.id)
             } else {
                 OnboardingFlow()
             }
+            #endif
         }
         .background(Color.foyerBackground.ignoresSafeArea())
         .remoteMessageBanner()

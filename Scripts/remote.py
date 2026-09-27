@@ -68,8 +68,9 @@ def main():
                     print(describe(s))
             return
         device = os.environ.get("JF_DEVICE", "Apple TV")
-        target = next((s for s in sessions if args.session and s["Id"].startswith(args.session)), None) or \
-            next((s for s in sessions if s.get("Client") == "Foyer" and s.get("DeviceName") == device), None)
+        candidates = [s for s in sessions if s.get("Client") == "Foyer" and s.get("DeviceName") == device]
+        candidates.sort(key=lambda s: (bool(s.get("SupportsRemoteControl")), s.get("LastActivityDate", "")), reverse=True)
+        target = next((s for s in sessions if args.session and s["Id"].startswith(args.session)), None) or (candidates[0] if candidates else None)
         if not target:
             sys.exit(f"no Foyer session on device '{device}' (see: sessions)")
         sid = target["Id"]

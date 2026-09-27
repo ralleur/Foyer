@@ -116,6 +116,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         notificationTokens.append(center.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] note in
             Task { @MainActor [weak self] in
                 let error = note.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+                Log.error(.playback, "Native engine failed to play to end: \(AVPlayerDiagnostics.describe(error)); \(AVPlayerDiagnostics.describe(item))")
                 self?.fail(FoyerError(.videoLoadFailed, detail: "Failed to play to end: \(error?.localizedDescription ?? "unknown")"))
             }
         })
@@ -179,6 +180,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
             Log.info(.playback, "Native engine ready (\(item.tracks.count) tracks, duration \(duration.clockString))")
         case .failed:
             let error = item.error as NSError?
+            Log.error(.playback, "Native engine item failed: \(AVPlayerDiagnostics.describe(item))")
             let detail = "\(error?.domain ?? "") \(error?.code ?? 0): \(error?.localizedDescription ?? "unknown") \(item.errorLog()?.events.last?.errorComment ?? "")"
             fail(FoyerError(classify(error), detail: detail))
         default:

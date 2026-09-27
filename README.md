@@ -71,7 +71,7 @@ End-to-end check without a Jellyfin login (synthetic library + mock server, both
 Scripts/e2e-mock.sh               # see TESTING.md; needs ffmpeg for the media generator
 ```
 
-> **Verification status.** The app builds warning-free with Xcode 27 for the tvOS 27 simulator; core, app and UI tests pass there. Playback of MP4 (system player), MKV with HEVC/AC-3/DTS/TrueHD/FLAC and SRT/ASS (mpv engine, VideoToolbox decoding), an HDR10 remux via HLS, resume, watch-state reporting and the fallback chain were exercised against the mock server, and sign-in, browsing, resume, direct play of 4K HEVC MKV, forced-subtitle selection, the HDR remux path and progress reporting against a real Jellyfin 10.11 server (`Scripts/e2e-real.sh`). Not yet verified: a real Apple TV (HDR/Dolby Vision output, audio passthrough, frame-rate matching) — see [TESTING.md](TESTING.md) for the device test plan.
+> **Verification status.** The app builds warning-free with Xcode 27 for the tvOS 27 simulator; core, app and UI tests pass there. Playback of MP4 (system player), MKV with HEVC/AC-3/DTS/TrueHD/FLAC and SRT/ASS (mpv engine, VideoToolbox decoding), an HDR10 remux via HLS, resume, watch-state reporting and the fallback chain were exercised against the mock server, and sign-in, browsing, resume, direct play of 4K HEVC MKV, forced-subtitle selection, the HDR remux path and progress reporting against a real Jellyfin 10.11 server (`Scripts/e2e-real.sh`). On a real Apple TV 4K (tvOS 26.6): sign-in, remote control, HDR10 and Dolby Vision remuxes through the system player, MKV direct play through the advanced engine and resume were verified (see TESTING.md for the list and DEVELOPMENT.md for the two device-only bugs this found). Not yet verified on the device: audio passthrough on an AV receiver, HLG, frame-rate matching.
 
 ## Jellyfin setup
 
@@ -107,6 +107,7 @@ Sign in with username/password or **Quick Connect** (Settings › Quick Connect 
 
 - **HDR in the advanced engine is tone-mapped to SDR.** tvOS offers no EDR Metal path, so HDR/Dolby Vision content is routed to the system player (server remux when the container is MKV). Lossless audio on such files is re-encoded by the server to E-AC-3/AAC.
 - **Audio passthrough** of DTS/TrueHD is not possible on tvOS; they are decoded to multichannel PCM. AC-3/E-AC-3 (incl. Atmos) pass through via the system player.
+- **Dual-layer Dolby Vision (profile 7)** is played as HDR10: Apple TV cannot decode it, so the server strips the enhancement layer during the remux. Profile 5 and 8 play natively.
 - **AV1** needs hardware decoding (not present on Apple TV 4K 2022 and earlier); 1080p AV1 is decoded in software by the advanced engine, 4K AV1 is transcoded.
 - **Trickplay previews** are shown in the advanced player only; the system player has no API for custom scrub thumbnails.
 - **No offline downloads, no Live TV, no music/photos.** Those libraries are hidden.

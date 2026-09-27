@@ -9,7 +9,7 @@ Priorities, in order: reliability → picture and sound quality → direct play 
 | Implementation | `AVPlayer` in `AVPlayerViewController` | libmpv 0.41 + FFmpeg 9 via [MPVKit](https://github.com/mpvkit/MPVKit) (LGPL build), Metal through MoltenVK, VideoToolbox decoding |
 | Containers | MP4, M4V, MOV (progressive) and HLS/fMP4 (server output) | MKV, MP4, MOV, MPEG-TS, AVI, WebM, … |
 | Video | H.264 (8-bit ≤ L5.2), HEVC Main/Main 10 (hvc1/dvh1 tag), AV1 (hardware only), MPEG-4 Part 2 | H.264/HEVC via VideoToolbox, AV1/VP9 hardware or software ≤ 1080p, MPEG-2/4, VC-1 |
-| HDR | HDR10, HDR10+, HLG, Dolby Vision (P5 needs DV display, P7/P8 base layer as HDR10) | Tone-mapped to SDR (libplacebo bt.2446a); DV P5 reshaped by libdovi |
+| HDR | HDR10, HDR10+, HLG, Dolby Vision P5 and P8 (P7 dual-layer: the server strips RPU/EL and the HDR10 base layer is played) | Tone-mapped to SDR (libplacebo bt.2446a); DV P5 reshaped by libdovi |
 | Audio | AAC, AC-3, E-AC-3 (+Atmos JOC passthrough), ALAC, FLAC, MP3, PCM | Everything FFmpeg decodes (DTS, DTS-HD, TrueHD, FLAC, Opus, Vorbis, …) → multichannel PCM |
 | Subtitles | tx3g embedded (system menu); SRT/ASS/VTT fetched from the server and drawn by Foyer's overlay; bitmap → engine switch | Everything via libass (ASS styling, embedded fonts) and bitmap decoders (PGS, VobSub, DVB) |
 | UI | System transport bar, info panel, chapters, contextual *Skip Intro*, next-episode proposal, custom audio/subtitle menus | Foyer overlay: click for controls, swipe to scrub (trickplay previews), swipe down for panel, skip pill, countdown card, delays, debug HUD |
@@ -77,6 +77,8 @@ The advanced engine treats an end-of-file that arrives long before the known dur
 
 - Capabilities are probed at launch and on foreground: `AVPlayer.availableHDRModes` (HDR10/HLG/DV), `VTIsHardwareDecodeSupported` (HEVC, AV1), model (Apple TV HD limits), `AVAudioSession.maximumOutputNumberOfChannels`.
 - Native engine outputs HDR10/HLG/DV natively and lets tvOS switch dynamic range and frame rate according to the user's *Match Content* settings.
+- The device profile never claims dual-layer Dolby Vision (`DOVIWithEL`): AVPlayer on Apple TV rejects profile 7 (`-11855`), so Jellyfin removes the RPU/EL and copies the HDR10 base layer instead (verified on an Apple TV 4K).
+- The audio session asks for at most 8 output channels (HDMI PCM). Asking for the 32 that tvOS 26 reports on HDMI left the audio route at 0 Hz and made every AVPlayer item with audio fail (`CoreMediaErrorDomain 'nope'`) until the box was rebooted.
 - Advanced engine tone-maps HDR to SDR (documented limitation: no EDR Metal layer on tvOS) and requests the content frame rate via `AVDisplayManager`. HDR files therefore prefer the native path via server remux; the user can force local playback (Direct Play: Always / Advanced Player: Always).
 
 ## Seeking and buffering

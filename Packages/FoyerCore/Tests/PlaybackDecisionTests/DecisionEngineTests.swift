@@ -256,6 +256,12 @@ final class DecisionEngineTests: XCTestCase {
         XCTAssertEqual(p.transcodingProfiles.first?.protocol, "hls")
         XCTAssertEqual(p.transcodingProfiles.first?.container, "mp4")
         XCTAssertEqual(p.transcodingProfiles.first?.audioCodec?.split(separator: ",").first, "eac3")
+        // Dual-layer Dolby Vision (profile 7) cannot be decoded by AVPlayer on Apple TV; leaving it out of the range
+        // list makes Jellyfin copy the HDR10 base layer instead (verified on a 2022 Apple TV 4K, see DEVELOPMENT.md).
+        let ranges = p.codecProfiles.first { $0.codec == "hevc" }?.conditions.first { $0.property == .videoRangeType }?.value ?? ""
+        XCTAssertTrue(ranges.contains("DOVIWithHDR10"), ranges)
+        XCTAssertTrue(ranges.contains("HDR10"), ranges)
+        XCTAssertFalse(ranges.contains("DOVIWithEL"), ranges)
     }
 
     func test_advancedProfileShape() {

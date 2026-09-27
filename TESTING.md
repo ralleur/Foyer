@@ -59,6 +59,17 @@ JF_SERVER=… JF_USER=… JF_PW=… Scripts/remote.py watch 120                 
 
 `remote.py` targets the Foyer session whose device name is "Apple TV" (a real box; simulators report their model) and also sends pause/seek/stop/next, audio/subtitle switches and messages, so the playback matrix below can be driven from the Mac while the TV is watched.
 
+Debug-build launch arguments (`xcrun devicectl device process launch … com.ralleur.foyer -- <args>`, `xcrun simctl launch … <args>`):
+
+| Argument | Effect |
+| --- | --- |
+| `-server http://host:8096` | pre-fills the server field |
+| `-capabilities appleTV4K\|appleTV4KSDR\|appleTVHD` | decide routes like that box (simulator) |
+| `-play-url <url>` | show a stock AVPlayer for the URL and log its diagnostics (isolates a stream problem from the app) |
+| `-audio-channels N` | preferred audio output channels (0 = route default; default is min(max, 8)) |
+
+Verified on an Apple TV 4K (2022, tvOS 26.6, HDMI to a TV) on 2026-09-27: sign-in, Home, remote control, HDR10 MKV remux (Direct Stream, HDR kept), Dolby Vision WEBRip (RPU stripped by the server), DV profile 7 remux (HDR10 base layer, TrueHD → AC-3), DV profile 8 MKV with PGS in the advanced engine (VideoToolbox, tone-mapped), H.264 MP4 direct play, resume position restore. Not yet verified on the device: audio passthrough on an AV receiver, HLG, frame-rate switching for the native engine, seeking in remuxes, TestFlight builds.
+
 ## Manual test plan (device)
 
 Playback matrix (see PLAYBACK.md) on a real Apple TV 4K with an HDR display and an AV receiver:

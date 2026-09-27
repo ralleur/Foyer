@@ -45,7 +45,9 @@ public struct DeviceProfileBuilder: Sendable {
             types.append(.doviWithHLG)
         }
         if capabilities.supportsHDR10 {
-            types.append(contentsOf: [.hdr10, .hdr10Plus, .doviWithHDR10, .doviWithHDR10Plus, .doviWithEL, .doviWithELHDR10Plus])
+            // Dual-layer Dolby Vision (profile 7, "DOVIWithEL") is deliberately absent: AVPlayer on Apple TV cannot decode
+            // it (AVFoundationErrorDomain -11855). Left out, Jellyfin strips the RPU/EL and copies the HDR10 base layer.
+            types.append(contentsOf: [.hdr10, .hdr10Plus, .doviWithHDR10, .doviWithHDR10Plus])
         }
         if capabilities.supportsDolbyVision {
             types.append(.dovi)

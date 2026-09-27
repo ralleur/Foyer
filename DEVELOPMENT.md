@@ -110,3 +110,24 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 **Problem:** `log collect` for a paired Apple TV needs `sudo`, Xcode 27's console needs the app started from Xcode, and the debug screen's ring buffer is gone after a crash.
 **Decision:** `FileLogSink` (FoyerFoundation) appends every entry to `Library/Caches/Logs/foyer.log` (2 MB, one rotation, serial queue, failures ignored); `Scripts/device-logs.sh` copies it out of the app container with `xcrun devicectl device copy from --domain-type appDataContainer`, which works for development-signed builds without a debugger.
 
+## First playback on the Apple TV: every HEVC remux failed with CoreMediaErrorDomain 'nope'
+
+**Observation:** On the Apple TV 4K (tvOS 26.6) every server remux for the system player (Konklave HDR10, The Invite, Companion) reported *ready*, played for about a second and failed with `CoreMediaErrorDomain 1852797029` (`'nope'`); the same streams played in the simulator. The fallback chain then retried *Transcode* (which Jellyfin answered with the same remux) and finally landed in the advanced engine, tone-mapped to SDR.
+**Investigation:** `-play-url <url>` (debug builds) shows a stock `AVPlayerViewController` for any URL and `AVPlayerDiagnostics` logs the error chain, tracks, format descriptions and access/error logs. With it, from the Mac and without rebuilding: Jellyfin's own output copied to a local HTTP server failed; repackaging with local ffmpeg (with/without `hevc_mp4toannexb`, with/without edit lists) failed; **Apple's own HEVC and H.264 sample streams failed**; a video-only fMP4 played; an audio-only E-AC-3 playlist failed at once. So AVPlayer could not open audio at all. The audio session reported `HDMIOutput(32ch)`, `outputNumberOfChannels 32` and **`sampleRate 0 Hz`**, whatever the preferred channel count, and the advanced engine (its own AVFoundation output unit at 48 kHz/6 ch) kept working, with the reported position jumping back every ~10 s. After `xcrun devicectl device reboot` the route reported 48 kHz, Apple's samples played, and the Jellyfin remuxes played through the native engine (HDR10 kept, Dolby Vision WEBRip, DV profile 7 with TrueHD → AC-3).
+**Cause (best supported):** the first build asked `AVAudioSession` for `maximumOutputNumberOfChannels` = 32 preferred output channels on an HDMI route. tvOS 26 reports 32 there, HDMI carries 8 PCM channels, and the audio server stayed in a broken 32-channel/0 Hz state across app launches until the reboot (another AVPlayer app crashed in the meantime).
+**Decision:** `AudioSessionController` caps the preference at 8 channels and sets it *before* activating the session; `-audio-channels N` (debug) overrides it for experiments. `Scripts/install-device.sh` now fails when xcodebuild fails instead of installing the previous binary (which hid two of the experiments). The variant lab is worth repeating from a scratch directory: capture the master/media playlist, init and first segments with the app's own query parameters, repackage with ffmpeg, serve with `python3 -m http.server`, launch with `-play-url`.
+
+## Dual-layer Dolby Vision (profile 7)
+
+**Observation:** *Dune: Part Two* (UHD remux, DV profile 7 with enhancement layer, TrueHD) failed immediately in the native engine with `AVFoundationErrorDomain -11855` ("cannot be decoded on this device"). The profile listed `DOVIWithEL`/`DOVIWithELHDR10Plus` as supported ranges, so Jellyfin copied the profile-7 stream with a `dvh1` tag; Apple TV decodes DV profiles 5 and 8 only.
+**Decision:** The native profile no longer claims dual-layer DV. Jellyfin then reports `VideoRangeTypeNotSupported`, strips RPU/EL (`hevc_metadata=remove_dovi=1`) and copies the HDR10 base layer — verified on the device (Direct Stream, HDR10, TrueHD → AC-3). Profile 8 with an HDR10-compatible base layer stays `dvh1`; "DOVIInvalid" WEBRips (profile 8 RPU on BT.709-tagged x265, common on YTS-style releases) are handled the same way by the server.
+
+## Subtitle downloads time out on first use
+
+**Observation:** `Subtitle load failed: serverUnreachable: URLError -1001` while a 4K remux started: Jellyfin extracts embedded subtitles from the file on the first request, which takes longer than the 20 s request timeout.
+**Decision:** The subtitle session waits up to 120 s.
+
+## Routing note from the device run
+
+A Dolby Vision profile 8 MKV with TrueHD and a German PGS track selected (English audio) goes to the advanced engine and is tone-mapped: the system player cannot show PGS and burn-in would cost a full transcode. Subtitles the user asked for win over HDR; the decision screen says so. Switching the subtitle off moves such titles to the HDR remux.
+

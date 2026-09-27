@@ -22,11 +22,17 @@ for x in devs:
 echo "Building for device…"
 # The concrete device as destination + -allowProvisioningDeviceRegistration lets Xcode register the Apple TV
 # in the developer portal on the first build (otherwise: "Your team has no devices…").
-xcodebuild -project Foyer.xcodeproj -scheme Foyer -configuration Debug -destination "platform=tvOS,id=$UDID" \
-  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -allowProvisioningDeviceRegistration build 2>&1 \
-  | grep -E "error:|warning: .*(provision|sign)|\*\* BUILD" || true
+BUILD_LOG="$DERIVED/install-device-build.log"
+mkdir -p "$DERIVED"
+if ! xcodebuild -project Foyer.xcodeproj -scheme Foyer -configuration Debug -destination "platform=tvOS,id=$UDID" \
+  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -allowProvisioningDeviceRegistration build > "$BUILD_LOG" 2>&1; then
+  grep -E "error:|\*\* BUILD" "$BUILD_LOG" | head -20 >&2
+  echo "Build failed; full log: $BUILD_LOG" >&2
+  exit 1
+fi
+grep -E "warning: .*(provision|sign)|\*\* BUILD" "$BUILD_LOG" || true
 APP="$DERIVED/Build/Products/Debug-appletvos/Foyer.app"
-[ -d "$APP" ] || { echo "Build failed (no $APP)" >&2; exit 1; }
+[ -d "$APP" ] || { echo "Build produced no $APP" >&2; exit 1; }
 echo "Installing on ${UDID}…"
 xcrun devicectl device install app --device "$UDID" "$APP"
 xcrun devicectl device process launch --device "$UDID" com.ralleur.foyer

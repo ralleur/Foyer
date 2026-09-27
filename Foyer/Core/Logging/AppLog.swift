@@ -17,5 +17,7 @@ enum AppLog {
         #endif
         Log.shared.configure(sinks: [OSLogSink(subsystem: subsystem), buffer, file], minimumLevel: level)
         Log.info(.ui, "Foyer \(DeviceInfo.appVersion) starting on \(DeviceInfo.modelIdentifier) — log file \(fileURL.path)")
+        let arguments = ProcessInfo.processInfo.arguments.dropFirst()
+        if !arguments.isEmpty { Log.info(.ui, "Launch arguments: \(arguments.joined(separator: " "))") }
     }
 }
