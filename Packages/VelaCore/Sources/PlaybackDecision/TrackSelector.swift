@@ -157,7 +157,14 @@ public enum TrackSelector {
                 let sdh = inLanguage.filter { $0.isSDH }
                 let regular = inLanguage.filter { !$0.isSDH }
                 let pool = prefs.preferSDH ? (sdh.isEmpty ? regular : sdh) : (regular.isEmpty ? sdh : regular)
-                return pool.first { $0.isDefault == true } ?? pool.first { $0.isExternal != true } ?? pool.first
+                let pick = pool.first { $0.isDefault == true } ?? pool.first { $0.isExternal != true } ?? pool.first
+                // Jellyfin reads the whole file to extract an embedded text track (an hour for a 50 GB remux on a
+                // slow disk, starving the video stream meanwhile); an external file in the same language loads at once.
+                if let pick, pick.isExternal != true, pick.isTextSubtitle,
+                   let external = (pool + inLanguage).first(where: { $0.isExternal == true && $0.isTextSubtitle }) {
+                    return external
+                }
+                return pick
             }
             return nil
         }

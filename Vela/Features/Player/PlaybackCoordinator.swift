@@ -229,7 +229,7 @@ final class PlaybackCoordinator: Identifiable {
             // 5b. Server streams: fetch the first segment before the player does. Jellyfin needs a few seconds
             // (or more on a slow disk) to seek and produce it; AVPlayer gives up after ~10 s, we wait longer.
             if decision.route == .directStream || decision.route == .transcode, url.path.lowercased().hasSuffix(".m3u8") {
-                await HLSWarmup.prefetchFirstSegment(of: url)
+                await HLSWarmup.prefetchSegment(of: url, at: resolvedStart)
                 try Task.checkCancellation()
             }
 

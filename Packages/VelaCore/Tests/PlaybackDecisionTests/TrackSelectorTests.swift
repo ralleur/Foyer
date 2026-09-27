@@ -40,6 +40,28 @@ final class TrackSelectorTests: XCTestCase {
         XCTAssertEqual(sel.subtitleStreamIndex, 3, "regular German track preferred over SDH")
     }
 
+    func testExternalTextFileBeatsEmbeddedTextTrack() {
+        // Companion (2025): embedded German SubRip plus the same text as an external .de.hi.srt next to the file.
+        let streams = [
+            TestMedia.audio(index: 1, codec: "truehd", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 3, codec: "subrip", language: "ger"),
+            TestMedia.subtitle(index: 5, codec: "PGSSUB", language: "ger"),
+            TestMedia.subtitle(index: 12, codec: "subrip", language: "ger", external: true, sdh: true),
+            TestMedia.subtitle(index: 13, codec: "subrip", language: "eng", external: true, sdh: true),
+        ]
+        XCTAssertEqual(TrackSelector.select(streams: streams, preferences: prefs).subtitleStreamIndex, 12)
+    }
+
+    func testEmbeddedBitmapTrackIsKeptOverExternalFile() {
+        // Bitmap tracks are decoded near the playhead by Vela, no full-file extraction on the server.
+        let streams = [
+            TestMedia.audio(index: 1, codec: "truehd", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 3, codec: "PGSSUB", language: "ger"),
+            TestMedia.subtitle(index: 12, codec: "subrip", language: "ger", external: true),
+        ]
+        XCTAssertEqual(TrackSelector.select(streams: streams, preferences: prefs).subtitleStreamIndex, 3)
+    }
+
     func testPreferSDH() {
         var p = prefs
         p.preferSDH = true

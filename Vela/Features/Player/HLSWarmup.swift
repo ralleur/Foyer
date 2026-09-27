@@ -15,28 +15,54 @@ enum HLSWarmup {
         return URLSession(configuration: config)
     }()
 
-    static func prefetchFirstSegment(of master: URL) async {
+    /// Fetches the segment playback starts in. Jellyfin runs one ffmpeg per stream and restarts it for a segment
+    /// far from the current one, so warming up segment 0 for a resume at 26:00 made it remux from the start, then
+    /// start over (probe + seek on the source disk) when the player asked for 26:00.
+    static func prefetchSegment(of master: URL, at start: TimeInterval) async {
         let started = Date()
         do {
             let masterText = try await text(master)
             guard let mediaURL = firstURI(in: masterText, relativeTo: master) else { return }
             let mediaText = try await text(mediaURL)
             var targets: [URL] = []
+            // The media segment first: it starts the server job at the right position; the init segment
+            // (EXT-X-MAP) only exists once a job runs.
+            if let segment = segmentURI(in: mediaText, at: start), let url = URL(string: segment, relativeTo: mediaURL)?.absoluteURL {
+                targets.append(url)
+            }
             if let map = mediaText.range(of: #"#EXT-X-MAP:URI="([^"]+)""#, options: .regularExpression) {
                 let uri = String(mediaText[map]).replacingOccurrences(of: #"#EXT-X-MAP:URI=""#, with: "").dropLast()
                 if let url = URL(string: String(uri), relativeTo: mediaURL)?.absoluteURL { targets.append(url) }
             }
-            if let first = firstURI(in: mediaText, relativeTo: mediaURL) { targets.append(first) }
             for target in targets {
                 var request = URLRequest(url: target)
                 request.setValue("bytes=0-0", forHTTPHeaderField: "Range") // the server waits for the segment, we do not need its bytes
                 _ = try await session.data(for: request)
             }
             let elapsed = Date().timeIntervalSince(started)
-            if elapsed > 1.5 { Log.info(.playback, "HLS warm-up: first segment ready after \(String(format: "%.1f", elapsed)) s") }
+            if elapsed > 1.5 { Log.info(.playback, "HLS warm-up: segment at \(Int(start)) s ready after \(String(format: "%.1f", elapsed)) s") }
         } catch {
             Log.notice(.playback, "HLS warm-up gave up after \(String(format: "%.1f", Date().timeIntervalSince(started))) s: \(error.localizedDescription)")
         }
+    }
+
+    /// The URI of the segment containing `time` (sum of `#EXTINF` durations); the last segment past the end.
+    static func segmentURI(in playlist: String, at time: TimeInterval) -> String? {
+        var elapsed: TimeInterval = 0
+        var duration: TimeInterval?
+        var last: String?
+        for line in playlist.split(whereSeparator: \.isNewline).map({ $0.trimmingCharacters(in: .whitespaces) }) where !line.isEmpty {
+            if line.hasPrefix("#EXTINF:") {
+                duration = TimeInterval(line.dropFirst(8).prefix { $0 != "," }.trimmingCharacters(in: .whitespaces))
+            } else if !line.hasPrefix("#") {
+                let length = duration ?? 0
+                if time < elapsed + length { return line }
+                elapsed += length
+                duration = nil
+                last = line
+            }
+        }
+        return last
     }
 
     private static func text(_ url: URL) async throws -> String {

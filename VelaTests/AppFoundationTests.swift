@@ -117,3 +117,29 @@ final class ServerAccountTests: XCTestCase {
         XCTAssertEqual(account.tokenKey, "token.s|u")
     }
 }
+
+final class HLSWarmupTests: XCTestCase {
+    private let playlist = """
+    #EXTM3U
+    #EXT-X-PLAYLIST-TYPE:VOD
+    #EXT-X-VERSION:7
+    #EXT-X-TARGETDURATION:6
+    #EXT-X-MEDIA-SEQUENCE:0
+    #EXT-X-MAP:URI="hls1/main/-1.mp4?api_key=x"
+    #EXTINF:6.0, nodesc
+    hls1/main/0.mp4?runtimeTicks=0&api_key=x
+    #EXTINF:6.0, nodesc
+    hls1/main/1.mp4?runtimeTicks=60000000&api_key=x
+    #EXTINF:4.5, nodesc
+    hls1/main/2.mp4?runtimeTicks=120000000&api_key=x
+    #EXT-X-ENDLIST
+    """
+
+    func testPicksTheSegmentContainingTheStartPosition() {
+        XCTAssertEqual(HLSWarmup.segmentURI(in: playlist, at: 0), "hls1/main/0.mp4?runtimeTicks=0&api_key=x")
+        XCTAssertEqual(HLSWarmup.segmentURI(in: playlist, at: 6), "hls1/main/1.mp4?runtimeTicks=60000000&api_key=x")
+        XCTAssertEqual(HLSWarmup.segmentURI(in: playlist, at: 13.2), "hls1/main/2.mp4?runtimeTicks=120000000&api_key=x")
+        XCTAssertEqual(HLSWarmup.segmentURI(in: playlist, at: 999), "hls1/main/2.mp4?runtimeTicks=120000000&api_key=x", "past the end: last segment")
+        XCTAssertNil(HLSWarmup.segmentURI(in: "#EXTM3U\n#EXT-X-ENDLIST", at: 0))
+    }
+}
