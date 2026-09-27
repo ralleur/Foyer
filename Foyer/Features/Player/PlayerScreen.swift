@@ -86,7 +86,7 @@ struct EngineHostView: UIViewControllerRepresentable {
 final class EngineContainerViewController: UIViewController {
     private weak var child: UIViewController?
 
-    override var preferredFocusEnvironments: [UIFocusEnvironment] {
+    override var preferredFocusEnvironments: [any UIFocusEnvironment] {
         child.map { [$0] } ?? super.preferredFocusEnvironments
     }
 

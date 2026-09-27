@@ -29,6 +29,8 @@ Foyer/
   Features/Search          debounced server search
   Features/Settings        settings, debug screens, licenses
   Features/Player          PlaybackCoordinator, engines, overlay UI, subtitles, reporter, next-episode resolver
+FoyerTests/                app unit tests (fixture transport, mock engine); FoyerUITests/ fixture UI tests + MockServerTour
+Tools/MockJellyfin         synthetic media generator + mock Jellyfin server for end-to-end runs (Scripts/e2e-mock.sh)
 ```
 
 ## Principles

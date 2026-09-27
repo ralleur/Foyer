@@ -47,6 +47,7 @@ struct ItemDetailView: View {
                 .background(Color.foyerBackground.opacity(0.8))
             }
         }
+        .focusScope(focusNamespace)
         .task(id: itemId) {
             if let client = environment.client { await model.load(client: client) }
         }
@@ -91,7 +92,7 @@ struct ItemDetailView: View {
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: 1000, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(TextBlockButtonStyle())
                     .accessibilityHint(L10n.more)
                 }
                 creditsBlock
@@ -239,7 +240,6 @@ struct ItemDetailView: View {
                 .buttonStyle(PillButtonStyle(prominent: false))
             }
         }
-        .focusScope(focusNamespace)
         .focusSection()
     }
 

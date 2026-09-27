@@ -87,7 +87,7 @@ extension BaseItem {
 }
 
 enum DurationFormatting {
-    nonisolated(unsafe) private static let formatter: DateComponentsFormatter = {
+    private static let formatter: DateComponentsFormatter = {
         let f = DateComponentsFormatter()
         f.allowedUnits = [.hour, .minute]
         f.unitsStyle = .abbreviated
@@ -99,7 +99,7 @@ enum DurationFormatting {
         formatter.string(from: max(60, interval.rounded())) ?? interval.clockString
     }
 
-    nonisolated(unsafe) private static let timeFormatter: DateFormatter = {
+    private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.timeStyle = .short
         f.dateStyle = .none

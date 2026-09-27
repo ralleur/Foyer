@@ -100,7 +100,11 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
         options.append("pause=no")
         options.append("sid=no")
         let optionString = options.joined(separator: ",")
-        let result = controller.command(["loadfile", request.url.absoluteString, "replace", optionString])
+        // mpv ≥ 0.38: loadfile <url> <flags> <index> <options>; older builds: loadfile <url> <flags> <options>.
+        var result = controller.command(["loadfile", request.url.absoluteString, "replace", "-1", optionString])
+        if result == -4 { // MPV_ERROR_INVALID_PARAMETER → legacy three-argument form
+            result = controller.command(["loadfile", request.url.absoluteString, "replace", optionString])
+        }
         if result < 0 {
             fail(FoyerError(.videoLoadFailed, detail: "mpv loadfile failed (\(result))"))
             return
@@ -145,9 +149,7 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
                 let kind: FoyerErrorKind = message.lowercased().contains("unrecognized") || message.lowercased().contains("format") ? .formatUnsupported : .videoLoadFailed
                 fail(FoyerError(kind, detail: "mpv: \(message)"))
             } else if reason == 0, !reachedEnd {
-                reachedEnd = true
-                setState(.ended)
-                delegate?.engineDidReachEnd(self)
+                handleEndOfFile()
             }
         case let .propertyChanged(name, value):
             propertyChanged(name, value)
@@ -185,15 +187,27 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
             updateState()
         case "eof-reached":
             if let eof = value as? Bool, eof, fileLoaded, !reachedEnd {
-                reachedEnd = true
-                setState(.ended)
-                delegate?.engineDidReachEnd(self)
+                handleEndOfFile()
             }
         case "track-list/count":
             if fileLoaded { applyPendingSubtitleIfNeeded() }
         default:
             break
         }
+    }
+
+    /// mpv reports a plain EOF for streams that break off (HTTP errors, unseekable sources). An "end"
+    /// long before the known duration is a failure, so the coordinator can try another route instead
+    /// of silently closing the player.
+    private func handleEndOfFile() {
+        let expected = duration > 0 ? duration : (request?.mediaSource.runtime ?? 0)
+        if expected > 10, currentTime < expected - 5 {
+            fail(FoyerError(.videoLoadFailed, detail: "mpv ended at \(currentTime.clockString) of \(expected.clockString) (stream broke off)"))
+            return
+        }
+        reachedEnd = true
+        setState(.ended)
+        delegate?.engineDidReachEnd(self)
     }
 
     private func updateState() {
@@ -347,6 +361,11 @@ final class AdvancedPlaybackEngine: PlaybackEngine {
     func updateSkipAction(title: String?) {}
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool) {}
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?) {}
+
+    /// libass draws at the bottom edge; lift it while the scrubber/panel is showing.
+    func setControlsVisible(_ visible: Bool) {
+        controller?.setProperty("sub-pos", string: visible ? "80" : "100")
+    }
 
     // MARK: Lifecycle
 

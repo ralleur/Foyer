@@ -122,6 +122,8 @@ struct LibraryGridView: View {
             }
             .padding(.horizontal, Spacing.screenEdge)
             .padding(.vertical, Spacing.l)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .focusSection()
             if model.isLoading {
                 ProgressView().padding(Spacing.l)
             }

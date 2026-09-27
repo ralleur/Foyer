@@ -171,7 +171,7 @@
 "Server not reachable" = "Server nicht erreichbar";
 "Foyer could not reach the Jellyfin server. Check the address and that the server is running." = "Foyer konnte den Jellyfin-Server nicht erreichen. Prüfe die Adresse und ob der Server läuft.";
 "Certificate not trusted" = "Zertifikat nicht vertrauenswürdig";
-"The server's HTTPS certificate is not trusted by this Apple TV. Use a valid certificate or connect via HTTP on your local network." = "Dem HTTPS-Zertifikat des Servers wird auf diesem Apple TV nicht vertraut. Verwende ein gültiges Zertifikat oder verbinde dich im Heimnetz per HTTP.";
+"The server's security certificate is not trusted by this Apple TV. Use a valid certificate, or use the unencrypted server address on your home network." = "Dem Sicherheitszertifikat des Servers wird auf diesem Apple TV nicht vertraut. Verwende ein gültiges Zertifikat oder im Heimnetz die unverschlüsselte Serveradresse.";
 "Sign in failed" = "Anmeldung fehlgeschlagen";
 "Please check the username and password." = "Bitte Benutzername und Passwort prüfen.";
 "Session expired" = "Sitzung abgelaufen";

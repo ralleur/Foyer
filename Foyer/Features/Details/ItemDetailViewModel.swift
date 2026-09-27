@@ -50,10 +50,12 @@ final class ItemDetailViewModel {
             self.error = error
             Log.error(.jellyfin, "Loading item \(item.id) failed: \(FoyerError.wrap(error))")
         }
-        async let similarItems = (try? await client.similar(itemId: item.id, limit: 12)) ?? []
+        let itemId = item.id
+        let seriesIdToLoad = item.isEpisode ? item.seriesId : nil
+        async let similarItems = (try? await client.similar(itemId: itemId, limit: 12)) ?? []
         async let seriesItem: BaseItem? = {
-            guard item.isEpisode, let seriesId = item.seriesId else { return nil }
-            return try? await client.item(id: seriesId, fields: [.overview, .genres])
+            guard let seriesIdToLoad else { return nil }
+            return try? await client.item(id: seriesIdToLoad, fields: [.overview, .genres])
         }()
         similar = await similarItems
         series = await seriesItem

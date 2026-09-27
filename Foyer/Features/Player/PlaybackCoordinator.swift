@@ -78,6 +78,8 @@ final class PlaybackCoordinator: Identifiable {
     private let countdownPolicy = NextEpisodeCountdownPolicy()
     private var closed = false
     private var loadedFullItem = false
+    /// Start position handed to the current engine; used when a fallback happens before playback began.
+    private var requestedStartPosition: TimeInterval = 0
     /// Set while a next/previous item or a route change is in flight; blocks re-entrant transitions.
     private var transitioning = false
 
@@ -113,6 +115,7 @@ final class PlaybackCoordinator: Identifiable {
         let position = currentTime
         let engine = self.engine
         self.engine = nil
+        PlaybackDecisionJournal.shared.updateStatistics(statistics.lines.joined(separator: "\n"))
         engine?.stop()
         DisplayCriteriaController.reset()
         UIApplication.shared.isIdleTimerDisabled = false
@@ -163,6 +166,7 @@ final class PlaybackCoordinator: Identifiable {
 
             // 4. Ask the server.
             let resolvedStart = startPosition ?? initialStartPosition()
+            requestedStartPosition = resolvedStart
             let request = PlaybackInfoRequest(userId: client.userId, mediaSourceId: source.id, deviceProfile: decision.deviceProfile,
                                               maxStreamingBitrate: preferences.playback.maxStreamingBitrate,
                                               startTimeTicks: JellyfinTicks.ticks(seconds: resolvedStart),
@@ -385,7 +389,8 @@ final class PlaybackCoordinator: Identifiable {
             return
         }
         Log.warning(.playback, "Route \(decision?.route.rawValue ?? "?") failed (\(error)); trying \(next.rawValue)")
-        let position = max(currentTime, 0)
+        // If the engine never produced a frame, resume where the user asked to start, not at 0.
+        let position = didReportStart ? max(currentTime, 0) : max(currentTime, requestedStartPosition)
         isSwitchingEngine = true
         transitioning = true
         Task {
@@ -422,6 +427,7 @@ final class PlaybackCoordinator: Identifiable {
             return
         }
         countdownStart = countdownPolicy.countdownStart(mediaDuration: duration, outro: segments.first { $0.type == .outro })
+        Log.debug(.playback, "Next-episode countdown starts at \(countdownStart?.clockString ?? "-") (duration \(duration.clockString), outro \(segments.first { $0.type == .outro }?.start.clockString ?? "none"))")
     }
 
     private func pushNextEpisodeToEngine() {
@@ -442,7 +448,10 @@ final class PlaybackCoordinator: Identifiable {
             if time >= start {
                 let remaining = Int((duration - time).rounded(.up))
                 let seconds = max(0, min(countdownPolicy.countdownSeconds, remaining))
-                if countdownSeconds != seconds { countdownSeconds = seconds }
+                if countdownSeconds != seconds {
+                    if countdownSeconds == nil { Log.info(.playback, "Next-episode countdown visible (\(seconds) s)") }
+                    countdownSeconds = seconds
+                }
                 if seconds == 0 { playNext(next) }
             } else if countdownSeconds != nil {
                 countdownSeconds = nil
@@ -469,6 +478,9 @@ final class PlaybackCoordinator: Identifiable {
 
     func play() { engine?.play() }
     func pause() { engine?.pause() }
+
+    /// The overlay tells the engine when it covers the lower part of the picture.
+    func setControlsVisible(_ visible: Bool) { engine?.setControlsVisible(visible) }
 
     func seek(to time: TimeInterval) {
         let clamped = max(0, min(time, duration > 0 ? duration - 0.5 : time))

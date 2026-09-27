@@ -7,6 +7,7 @@
 | Core unit tests | `Packages/FoyerCore/Tests` | macOS, Linux (`swift test`), Xcode | Jellyfin model decoding (fixtures), date parsing, open enums, URL/auth header construction, legacy endpoint fallbacks, error mapping, log redaction, server address normalisation, items query encoding, the playback decision matrix (42 tests), device profile shape, reconciliation with server responses, track selection rules, SRT/VTT/ASS parsing and timeline lookup, trickplay geometry, skip/countdown/progress/resume policies |
 | App unit tests | `FoyerTests` | tvOS simulator | Integration flows against canned server responses (`FixtureTransport`): server discovery → sign-in → token in Keychain → switch/sign-out; libraries + Home sections + snapshot; library paging and series/season/episode models; `PlaybackCoordinator` with a mock engine (resume position, default German audio + forced subtitles, in-place vs. reload track switches, fallback after engine failure, close/stop) and the start/progress/stop reports the server receives; preferences persistence and defaults, error presentation, image downsampling, subtitle text decoding, track titles |
 | UI tests | `FoyerUITests` | tvOS simulator | Home sections, movie detail (play/watched buttons), series navigation (season chips, episode rows), settings screen. The app is launched with `-uitest`, which installs a fake session and a `FixtureTransport` that serves JSON from `Foyer/Resources/UITestFixtures`; no Jellyfin server is needed |
+| End-to-end tour | `FoyerUITests/MockServerTour` + `Tools/MockJellyfin` | tvOS simulator + local mock server | Real HTTP, real media files, both engines: onboarding → Home → resume in the advanced player (panel, tracks, subtitles, seek) → movie detail → system player → series with skip intro, next-episode countdown and autoplay → DTS/TrueHD track switching → HDR10 remux via HLS → broken file through the fallback chain to the error screen → search and settings. Every step leaves a screenshot |
 
 ## Running
 
@@ -20,10 +21,22 @@ xcodebuild -project Foyer.xcodeproj -scheme Foyer \
   -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' test
 ```
 
+## End-to-end tour with the mock server
+
+```bash
+Tools/MockJellyfin/make-media.sh          # once: ~30 MB of synthetic clips (needs ffmpeg with x264/x265)
+Scripts/e2e-mock.sh                       # starts the server, reinstalls the app, runs MockServerTour, saves screenshots
+open build/e2e/shots                      # numbered PNGs per step; server log next to them
+```
+
+The mock server can also be used interactively: `Tools/MockJellyfin/server.py --media Tools/MockJellyfin/media` and sign in as user `test` (no password) from a simulator or an Apple TV on the same network. It implements the endpoints listed in JELLYFIN.md, keeps watch state in memory and transcodes/remuxes to HLS with ffmpeg when the app asks for server help. It is a test tool, not a Jellyfin replacement.
+
 ## Status
 
-- Core: 103 tests, all passing on Linux with Swift 6.2.4 (this is where the initial implementation was verified).
-- App and UI tests: written, not yet executed — the initial environment had no tvOS SDK. Run them on the first Mac build and fix what surfaces.
+- Core: 103 tests, all passing (Linux with Swift 6.2.4 and macOS with Xcode 27).
+- App unit tests (`FoyerTests`): 19 tests passing on the tvOS 27 simulator.
+- UI tests (`FoyerUITests`, fixtures): run on the simulator; see the notes in DEVELOPMENT.md for the focus-navigation fixes they triggered.
+- End-to-end tour (`Scripts/e2e-mock.sh`): all five `MockServerTour` tests pass on the tvOS 27 simulator (≈ 6 minutes; the app is reinstalled and the mock server restarted for every run so watch state starts from the fixture defaults).
 
 ## Manual test plan (device)
 

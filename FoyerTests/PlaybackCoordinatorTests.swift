@@ -37,6 +37,7 @@ final class MockEngine: PlaybackEngine {
     func updateSkipAction(title: String?) {}
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool) {}
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?) {}
+    func setControlsVisible(_ visible: Bool) {}
     func appDidEnterBackground() {}
     func appWillEnterForeground() {}
 
@@ -148,6 +149,41 @@ final class PlaybackCoordinatorTests: XCTestCase {
         XCTAssertEqual(engines.count, 2, "a fallback route should have been attempted")
         XCTAssertNotEqual(coordinator.decision?.route, firstRoute)
         XCTAssertTrue(first.stopped)
+    }
+
+    func testCreditsCountdownOnAdvancedEngine() async throws {
+        // Episode fixture: MKV, segments intro 0:30–2:00 and outro 41:40–45:00, next episode ep2 in the same season.
+        preferences.playback.advancedEngineMode = .always
+        var episode = BaseItem(id: "ep1", name: "Dulcinea", type: .episode)
+        episode.seriesId = "series1"
+        episode.seasonId = "season1"
+        let coordinator = makeCoordinator(item: episode)
+        coordinator.begin()
+        try await waitUntilReady(coordinator)
+        let engine = try XCTUnwrap(engines.first)
+        XCTAssertEqual(engine.kind, .advanced)
+        engine.duration = 2700
+        engine.simulateReady()
+        for _ in 0..<100 where coordinator.nextEpisode == nil { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(coordinator.nextEpisode?.id, "ep2")
+
+        // Segments load asynchronously; the intro prompt shows up within the first seconds of the segment.
+        for _ in 0..<100 where coordinator.skipPrompt == .none {
+            engine.delegate?.engine(engine, didUpdateTime: 35, duration: 2700)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(coordinator.skipPrompt, .skipIntro(to: 120))
+        XCTAssertNil(coordinator.countdownSeconds)
+
+        engine.delegate?.engine(engine, didUpdateTime: 2600, duration: 2700)
+        XCTAssertEqual(coordinator.countdownSeconds, 10, "countdown starts in the credits")
+        engine.delegate?.engine(engine, didUpdateTime: 2695, duration: 2700)
+        XCTAssertEqual(coordinator.countdownSeconds, 5)
+
+        coordinator.cancelCountdown()
+        engine.delegate?.engine(engine, didUpdateTime: 2696, duration: 2700)
+        XCTAssertNil(coordinator.countdownSeconds, "cancelled countdown stays cancelled")
+        XCTAssertEqual(engines.count, 1, "no autoplay after cancel")
     }
 
     func testCloseStopsEngineAndCallsBack() async throws {

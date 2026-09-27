@@ -12,7 +12,7 @@ final class ImagePipeline: @unchecked Sendable {
     private let memory = NSCache<NSString, UIImage>()
     private let session: URLSession
     private let lock = NSLock()
-    private var inflight: [String: Task<UIImage, Error>] = [:]
+    private var inflight: [String: Task<UIImage, any Error>] = [:]
     /// Provides the MediaBrowser authorization header for image requests (read on the main actor).
     var authorizationHeaderProvider: (@MainActor @Sendable () -> String?)?
 
@@ -42,11 +42,11 @@ final class ImagePipeline: @unchecked Sendable {
     }
 
     /// Returns the in-flight task for this key or starts one. Synchronous so the lock never spans an await.
-    private func loadTask(for url: URL, key: String, targetSize: CGSize) -> Task<UIImage, Error> {
+    private func loadTask(for url: URL, key: String, targetSize: CGSize) -> Task<UIImage, any Error> {
         lock.lock()
         defer { lock.unlock() }
         if let existing = inflight[key] { return existing }
-        let created = Task<UIImage, Error>(priority: .userInitiated) { [session, authorizationHeaderProvider] in
+        let created = Task<UIImage, any Error>(priority: .userInitiated) { [session, authorizationHeaderProvider] in
             var request = URLRequest(url: url)
             if let authorizationHeaderProvider, let header = await authorizationHeaderProvider() {
                 request.setValue(header, forHTTPHeaderField: "Authorization")

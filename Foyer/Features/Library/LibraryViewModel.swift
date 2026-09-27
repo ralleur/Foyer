@@ -26,7 +26,7 @@ enum LibrarySort: String, CaseIterable, Identifiable {
         }
     }
 
-    var order: SortOrder {
+    var order: JellyfinKit.SortOrder {
         switch self {
         case .name: .ascending
         default: .descending

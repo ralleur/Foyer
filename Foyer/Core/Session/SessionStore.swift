@@ -5,7 +5,7 @@ import JellyfinKit
 
 /// The signed-in state: account metadata plus a configured client.
 struct ActiveSession: Identifiable {
-    let account: ServerAccount
+    var account: ServerAccount
     let client: JellyfinClient
     var user: User?
 

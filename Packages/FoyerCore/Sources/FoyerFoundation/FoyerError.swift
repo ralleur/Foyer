@@ -51,7 +51,7 @@ public struct FoyerError: Error, Sendable, Hashable, CustomStringConvertible {
         }
         let ns = error as NSError
         if ns.domain == NSURLErrorDomain {
-            let urlError = URLError(URLError.Code(rawValue: ns.code) ?? .unknown)
+            let urlError = URLError(URLError.Code(rawValue: ns.code))
             return FoyerError(urlError.foyerKind, detail: "URLError \(ns.code): \(ns.localizedDescription)")
         }
         return FoyerError(.unknown, detail: "\(type(of: error)): \(ns.localizedDescription)")

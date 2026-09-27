@@ -41,7 +41,9 @@ Every decision carries `reasons` (positive facts and blockers of the other engin
 
 ### Fallback chain
 
-If an engine fails to open or play (`didFail`), the coordinator stops the session, re-runs preparation at the last position with the next route in `[other engine's direct play, Direct Stream, Transcode]` that has not been tried, and asks the server again with `EnableDirectPlay=false` for server routes. Only when the chain is exhausted does the user see an error (with the technical reason under Debug).
+If an engine fails to open or play (`didFail`), the coordinator stops the session, re-runs preparation at the last position (or at the originally requested position when no frame was shown yet) with the next route in `[other engine's direct play, Direct Stream, Transcode]` that has not been tried, and asks the server again with `EnableDirectPlay=false` for server routes. Only when the chain is exhausted does the user see an error (with the technical reason under Debug).
+
+The advanced engine treats an end-of-file that arrives long before the known duration (stream broke off, unseekable source) as a failure rather than a normal end, so a broken direct stream falls back instead of silently closing the player.
 
 ## Device profile
 
@@ -82,7 +84,7 @@ If an engine fails to open or play (`didFail`), the coordinator stops the sessio
 ## Segments, next episode, resume
 
 - Segments: `GET /MediaSegments/{id}` (10.10+) → Intro Skipper `IntroSkipperSegments` → `IntroTimestamps/v1`. `SkipSegmentPolicy` shows *Skip Intro/Recap* for ≤ 12 s after the segment starts, hides it 2 s before the end, respects dismissals; commercials/previews are skippable throughout; an outro turns the prompt into *Next Episode*.
-- Next episode: `NextEpisodeResolver` walks the season (and into the next regular season). Native engine shows the system content proposal (auto-accepted at the end when autoplay is on); advanced engine shows a countdown card 10 s before the end or at the credits marker. Menu cancels the countdown.
+- Next episode: `NextEpisodeResolver` walks the season (and into the next regular season). Native engine shows the system content proposal (auto-accepted at the end when autoplay is on); advanced engine shows a countdown card 10 s before the end or at the credits marker (only for items longer than 60 s; short clips just show the *Next Episode* pill). Menu cancels the countdown.
 - Resume: `ResumePolicy` ignores positions < 20 s and within the last 15 s. "Play from beginning" is one click away in details and context menus.
 
 ## Lifecycle

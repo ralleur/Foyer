@@ -78,7 +78,7 @@ final class RemoteInputViewController: UIViewController {
         view.addGestureRecognizer(pan)
     }
 
-    override var preferredFocusEnvironments: [UIFocusEnvironment] { [inputView_] }
+    override var preferredFocusEnvironments: [any UIFocusEnvironment] { [inputView_] }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)

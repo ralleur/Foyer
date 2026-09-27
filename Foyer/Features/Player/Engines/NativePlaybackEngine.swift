@@ -23,7 +23,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
     private var request: EngineLoadRequest?
     private var timeObserver: Any?
     private var observations: [NSKeyValueObservation] = []
-    private var notificationTokens: [NSObjectProtocol] = []
+    private var notificationTokens: [any NSObjectProtocol] = []
     private var pendingSeek: TimeInterval?
     private var didStartPlaying = false
     private var subtitleOverlay: UIHostingController<NativeSubtitleOverlay>?
@@ -125,6 +125,9 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
                 self?.setState(.buffering)
             }
         })
+        notificationTokens.append(center.addObserver(forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.systemMediaSelectionChanged() }
+        })
         notificationTokens.append(center.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: item, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 if let entry = self?.player.currentItem?.errorLog()?.events.last {
@@ -163,6 +166,7 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
                 self.audibleGroup = try? await asset.loadMediaSelectionGroup(for: .audible)
                 self.legibleGroup = try? await asset.loadMediaSelectionGroup(for: .legible)
                 self.applyInitialMediaSelection()
+                self.rebuildTransportMenus() // the system shows its own audio menu for multi-track assets
             }
             if let seekTo = pendingSeek {
                 pendingSeek = nil
@@ -184,7 +188,14 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     private func classify(_ error: NSError?) -> FoyerErrorKind {
         guard let error else { return .videoLoadFailed }
-        if error.domain == NSURLErrorDomain { return URLError(URLError.Code(rawValue: error.code) ?? .unknown).foyerKind }
+        if error.domain == NSURLErrorDomain {
+            let code = URLError.Code(rawValue: error.code)
+            // The server answered but not with playable media: that is a playback problem, not connectivity.
+            if [.badServerResponse, .zeroByteResource, .cannotDecodeRawData, .cannotDecodeContentData, .cannotParseResponse].contains(code) {
+                return .videoLoadFailed
+            }
+            return URLError(code).foyerKind
+        }
         if error.domain == AVFoundationErrorDomain {
             switch error.code {
             case AVError.Code.fileFormatNotRecognized.rawValue, AVError.Code.decoderNotFound.rawValue, AVError.Code.failedToParse.rawValue, AVError.Code.contentIsNotAuthorized.rawValue:
@@ -305,6 +316,36 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         return false
     }
 
+    /// The user picked a track in the system's transport-bar menu: map AVFoundation's option back to the
+    /// Jellyfin stream so the coordinator can report and remember it.
+    private func systemMediaSelectionChanged() {
+        guard let request, let item = player.currentItem else { return }
+        if let group = audibleGroup, let option = item.currentMediaSelection.selectedMediaOption(in: group),
+           let ordinal = group.options.firstIndex(of: option) {
+            let audioStreams = request.mediaSource.audioStreams
+            if ordinal < audioStreams.count {
+                let index = audioStreams[ordinal].index
+                if index != selectedAudio {
+                    selectedAudio = index
+                    delegate?.engine(self, requestsAudioTrack: index)
+                }
+            }
+        }
+        if let group = legibleGroup {
+            let embedded = request.mediaSource.subtitleStreams.filter { $0.isExternal != true && $0.isTextSubtitle }
+            if let option = item.currentMediaSelection.selectedMediaOption(in: group), let ordinal = group.options.firstIndex(of: option) {
+                if ordinal < embedded.count, embedded[ordinal].index != selectedSubtitle {
+                    selectedSubtitle = embedded[ordinal].index
+                    delegate?.engine(self, requestsSubtitleTrack: selectedSubtitle)
+                }
+            } else if let current = selectedSubtitle, embedded.contains(where: { $0.index == current }) {
+                // Switched off in the system menu.
+                selectedSubtitle = nil
+                delegate?.engine(self, requestsSubtitleTrack: nil)
+            }
+        }
+    }
+
     // MARK: Menus, skip and next episode
 
     func updateSkipAction(title: String?) {
@@ -363,7 +404,10 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     private func rebuildTransportMenus() {
         var menus: [UIMenuElement] = []
-        if audioMenuTracks.count > 1 {
+        // Progressive files with several audio tracks get the system's own audio menu (selection is synced back
+        // via `mediaSelectionDidChangeNotification`); HLS carries one track, so Jellyfin's list is offered instead.
+        let systemShowsAudioMenu = (request?.isHLS == false) && (audibleGroup?.options.count ?? 0) > 1
+        if audioMenuTracks.count > 1, !systemShowsAudioMenu {
             let actions = audioMenuTracks.map { track in
                 UIAction(title: track.title, subtitle: track.detail, state: track.streamIndex == selectedAudio ? .on : .off) { [weak self] _ in
                     Task { @MainActor [weak self] in
@@ -470,6 +514,8 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     /// The transport bar covers the lower part of the screen; lift subtitles while it is visible.
     private(set) var transportBarVisible = false
+
+    func setControlsVisible(_ visible: Bool) {} // the system transport bar is handled via its delegate callback
 
     func appDidEnterBackground() { player.pause() }
     func appWillEnterForeground() {}

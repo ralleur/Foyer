@@ -38,7 +38,13 @@ Scripts/test-app.sh
 xcodebuild -project Foyer.xcodeproj -scheme Foyer -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' test
 ```
 
-> The initial version of this code base was written in an environment without Xcode. The core package (Jellyfin client, playback decision engine, track selection, subtitle parsing, policies) is compiled and tested there; the tvOS app target was written against documented APIs but not compiled yet. Expect the first Xcode build to need small fixes — see [DEVELOPMENT.md](DEVELOPMENT.md).
+End-to-end check without a Jellyfin login (synthetic library + mock server, both engines, screenshots per step):
+
+```bash
+Scripts/e2e-mock.sh               # see TESTING.md; needs ffmpeg for the media generator
+```
+
+> **Verification status.** The app builds warning-free with Xcode 27 for the tvOS 27 simulator; core, app and UI tests pass there. Playback of MP4 (system player), MKV with HEVC/AC-3/DTS/TrueHD/FLAC and SRT/ASS (mpv engine, VideoToolbox decoding), an HDR10 remux via HLS, resume, watch-state reporting and the fallback chain were exercised against the mock server in the simulator. Not yet verified: a real Apple TV (HDR/Dolby Vision output, audio passthrough, frame-rate matching) and a real Jellyfin server with credentials — see [TESTING.md](TESTING.md) for the device test plan.
 
 ## Jellyfin setup
 

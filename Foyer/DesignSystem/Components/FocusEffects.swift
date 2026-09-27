@@ -86,3 +86,22 @@ struct ListRowButtonStyle: ButtonStyle {
             .animation(Motion.focus, value: isFocused)
     }
 }
+
+/// Quiet style for focusable text blocks (e.g. the overview that opens in full): the text brightens
+/// and gets a faint backing instead of the system's bright platter.
+struct TextBlockButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isFocused ? Color.foyerPrimaryText : Color.foyerSecondaryText)
+            .padding(.horizontal, Spacing.s)
+            .padding(.vertical, Spacing.xs)
+            .background(RoundedRectangle(cornerRadius: Radius.button, style: .continuous).fill(Color.white.opacity(isFocused ? 0.1 : 0)))
+            .padding(.horizontal, -Spacing.s)
+            .padding(.vertical, -Spacing.xs)
+            .animation(reduceMotion ? nil : Motion.focus, value: isFocused)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}

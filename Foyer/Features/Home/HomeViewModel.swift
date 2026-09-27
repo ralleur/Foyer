@@ -61,8 +61,9 @@ final class HomeViewModel {
             for await result in group { results.append(result) }
             return results.sorted { $0.0 < $1.0 }.map { ($0.1, $0.2) }
         }
+        let collectionLibrary = libraries.collectionLibraries.first
         async let collections: [BaseItem] = {
-            guard let library = libraries.collectionLibraries.first else { return [] }
+            guard let library = collectionLibrary else { return [] }
             var query = ItemsQuery(parentId: library.id, includeItemTypes: [.boxSet], sortBy: [.dateCreated], sortOrder: .descending, limit: 16)
             query.recursive = true
             return (try? await client.items(query).items) ?? []

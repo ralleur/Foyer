@@ -168,7 +168,7 @@ struct LandscapeCard: View {
         guard let runtime = item.runtime, runtime > 0 else { return nil }
         if let position = item.resumePosition {
             let remaining = max(0, runtime - position)
-            return "\(remaining.wholeMinutes) min " + L10n.remaining
+            return "\(max(1, remaining.wholeMinutes)) min " + L10n.remaining
         }
         return "\(runtime.wholeMinutes) min"
     }

@@ -179,7 +179,7 @@ enum L10n {
     static let errorServerUnreachableTitle = String(localized: "Server not reachable")
     static let errorServerUnreachableMessage = String(localized: "Foyer could not reach the Jellyfin server. Check the address and that the server is running.")
     static let errorCertificateTitle = String(localized: "Certificate not trusted")
-    static let errorCertificateMessage = String(localized: "The server's HTTPS certificate is not trusted by this Apple TV. Use a valid certificate or connect via HTTP on your local network.")
+    static let errorCertificateMessage = String(localized: "The server's security certificate is not trusted by this Apple TV. Use a valid certificate, or use the unencrypted server address on your home network.")
     static let errorLoginTitle = String(localized: "Sign in failed")
     static let errorLoginMessage = String(localized: "Please check the username and password.")
     static let errorSessionExpiredTitle = String(localized: "Session expired")

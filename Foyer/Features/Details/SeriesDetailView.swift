@@ -42,6 +42,7 @@ struct SeriesDetailView: View {
                 .scrollClipDisabled()
             }
         }
+        .focusScope(focusNamespace)
         .task(id: seriesId) {
             if let client = environment.client { await model.load(client: client) }
         }
@@ -90,7 +91,7 @@ struct SeriesDetailView: View {
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: 1100, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(TextBlockButtonStyle())
                 }
 
                 HStack(spacing: Spacing.m) {
@@ -110,7 +111,6 @@ struct SeriesDetailView: View {
                             .foregroundStyle(Color.foyerSecondaryText)
                     }
                 }
-                .focusScope(focusNamespace)
             }
         }
     }

@@ -42,6 +42,9 @@ struct AdvancedPlayerOverlay: View {
         }
         .animation(Motion.overlay, value: model.isVisible)
         .animation(Motion.overlay, value: model.panel)
+        .onChange(of: model.isVisible || model.isScrubbing || model.panel != nil) { _, covered in
+            coordinator.setControlsVisible(covered)
+        }
         .onChange(of: coordinator.isPlaying) { _, playing in
             if playing { model.scheduleHide() } else { model.show(playing: false) }
         }
@@ -216,7 +219,7 @@ struct AdvancedPlayerOverlay: View {
             HStack {
                 Spacer()
                 if let seconds = coordinator.countdownSeconds, let next = coordinator.nextEpisode {
-                    NextEpisodeCard(episode: next, seconds: seconds, imageURL: environment.client.map { ItemImages(client: $0).landscape(next, width: 600) })
+                    NextEpisodeCard(episode: next, seconds: seconds, imageURL: environment.client.flatMap { ItemImages(client: $0).landscape(next, width: 600) })
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 } else if let title = skipTitle {
                     SkipPill(title: title)
@@ -463,6 +466,7 @@ struct PlayerPanelView: View {
     let close: () -> Void
     @Environment(AppEnvironment.self) private var environment
     @Namespace private var focusNamespace
+    @FocusState private var focusedTab: OverlayModel.Panel?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -492,11 +496,16 @@ struct PlayerPanelView: View {
         .focusScope(focusNamespace)
         .onExitCommand(perform: close)
         .onPlayPauseCommand { coordinator.togglePlayPause() }
+        .onAppear {
+            // The remote-input view held focus until now; move it onto the tab bar explicitly.
+            DispatchQueue.main.async { focusedTab = panel }
+        }
     }
 
     private func tab(_ target: OverlayModel.Panel, _ title: String) -> some View {
         Button(title) { panel = target }
             .buttonStyle(PillButtonStyle(prominent: panel == target))
+            .focused($focusedTab, equals: target)
             .prefersDefaultFocus(target == panel, in: focusNamespace)
     }
 
@@ -520,7 +529,6 @@ struct PlayerPanelView: View {
                 .frame(maxWidth: 700, alignment: .leading)
             }
         }
-        .focusable()
     }
 
     private func trackList(_ tracks: [PlayerTrack], selected: Int?, action: @escaping (PlayerTrack) -> Void) -> some View {

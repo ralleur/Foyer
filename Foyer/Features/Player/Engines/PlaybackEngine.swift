@@ -176,6 +176,8 @@ protocol PlaybackEngine: AnyObject {
     func updateSkipAction(title: String?)
     func updateNextEpisode(_ item: BaseItem?, artworkURL: URL?, creditsStart: TimeInterval?, autoplay: Bool)
     func updateTrackMenus(audio: [PlayerTrack], subtitles: [PlayerTrack], selectedAudio: Int?, selectedSubtitle: Int?)
+    /// Called when Foyer's own controls cover the lower part of the picture (subtitles move up).
+    func setControlsVisible(_ visible: Bool)
     func appDidEnterBackground()
     func appWillEnterForeground()
 }

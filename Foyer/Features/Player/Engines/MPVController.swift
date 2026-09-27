@@ -93,7 +93,8 @@ final class MPVController: @unchecked Sendable {
         set("demuxer-readahead-secs", String(Int(options.cacheSeconds)))
         set("demuxer-seekable-cache", "yes")
         set("network-timeout", "20")
-        set("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=6,reconnect_on_network_error=1,reconnect_on_http_error=4xx,5xx")
+        // Key/value list (comma separated); values must not contain commas themselves.
+        set("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=6,reconnect_on_network_error=1")
         set("user-agent", options.userAgent)
         set("hr-seek", "default")
         set("hr-seek-framedrop", "yes")
@@ -101,10 +102,8 @@ final class MPVController: @unchecked Sendable {
         // Behaviour
         set("keep-open", "yes")
         set("idle", "yes")
-        set("ytdl", "no")
         set("input-default-bindings", "no")
         set("input-vo-keyboard", "no")
-        set("osc", "no")
         set("osd-level", "0")
         set("terminal", "no")
         set("msg-level", "all=warn,ffmpeg=error,vo=info,ao=info,demux=info,cplayer=info")

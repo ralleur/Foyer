@@ -29,6 +29,9 @@ final class OnboardingModel {
         self.sessionStore = sessionStore
         if let expired = sessionStore.expiredAccount {
             serverInput = ServerAddress.display(expired.serverURL)
+        } else if let preset = UserDefaults.standard.string(forKey: "server"), !preset.isEmpty {
+            // Launch argument `-server http://host:8096` (development and UI tests).
+            serverInput = preset
         }
     }
 

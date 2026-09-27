@@ -42,9 +42,12 @@ final class AppEnvironment {
         let capabilities = DeviceCapabilityProbe.probe(advancedEngineAvailable: AdvancedPlaybackEngine.isAvailable)
         Log.info(.playback, "Device capabilities: \(capabilities)")
 
-        let transportFactory: @Sendable () -> any HTTPTransport = isUITest
-            ? { FixtureTransport() }
-            : { URLSessionTransport(timeout: 20) }
+        let transportFactory: @Sendable () -> any HTTPTransport
+        if isUITest {
+            transportFactory = { FixtureTransport() }
+        } else {
+            transportFactory = { URLSessionTransport(timeout: 20) }
+        }
         let sessionStore = SessionStore(transportFactory: transportFactory, keychain: isUITest ? InMemoryKeychain() : KeychainStore())
         if isUITest { sessionStore.installUITestSession() }
 

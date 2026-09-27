@@ -89,7 +89,7 @@ final class SubtitleLoaderDecodingTests: XCTestCase {
         XCTAssertEqual(SubtitleLoader.decode(utf8), "Grüße")
         var bom = Data([0xEF, 0xBB, 0xBF])
         bom.append(utf8)
-        XCTAssertEqual(SubtitleLoader.decode(bom), "\u{FEFF}Grüße")
+        XCTAssertEqual(SubtitleLoader.decode(bom), "Grüße", "BOM must be stripped so the parser never sees it")
     }
 }
 
