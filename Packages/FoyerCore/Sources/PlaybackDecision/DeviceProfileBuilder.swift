@@ -21,7 +21,10 @@ public struct DeviceProfileBuilder: Sendable {
 
     // MARK: Shared pieces
 
-    private var maxBitrate: Int? { preferences.maxStreamingBitrate }
+    /// Jellyfin defaults both profile bitrates to 8 Mbit/s when a client omits them — which silently forces
+    /// 4K remuxes into a re-encode. "Original quality" therefore sends an explicit, generous ceiling.
+    public static let unlimitedBitrate = 200_000_000
+    private var maxBitrate: Int { preferences.maxStreamingBitrate ?? Self.unlimitedBitrate }
 
     private var nativeVideoCodecs: [String] {
         var codecs = ["h264"]
@@ -93,7 +96,10 @@ public struct DeviceProfileBuilder: Sendable {
                 ProfileCondition(.width, .lessThanEqual, String(capabilities.maxVideoWidth), isRequired: false),
             ]
             if includeTagCondition {
-                conditions.append(ProfileCondition(.videoCodecTag, .equalsAny, "hvc1|dvh1", isRequired: true))
+                // Not required: MKV sources carry no codec tag at all, and a required condition makes Jellyfin
+                // re-encode the video ("VideoCodecTagNotSupported") instead of remuxing it with `-tag:v hvc1`.
+                // An MP4 that is tagged `hev1` still fails the check and is remuxed rather than direct-played.
+                conditions.append(ProfileCondition(.videoCodecTag, .equalsAny, "hvc1|dvh1", isRequired: false))
             }
             profiles.append(CodecProfile(type: .video, codec: "hevc", conditions: conditions))
         }

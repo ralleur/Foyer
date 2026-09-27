@@ -39,7 +39,16 @@ final class AppEnvironment {
         let preferences = Preferences(defaults: isUITest ? UserDefaults(suiteName: "uitest")! : .standard)
         if isUITest { preferences.resetForUITests() }
         AudioSessionController.configure()
-        let capabilities = DeviceCapabilityProbe.probe(advancedEngineAvailable: AdvancedPlaybackEngine.isAvailable)
+        var capabilities = DeviceCapabilityProbe.probe(advancedEngineAvailable: AdvancedPlaybackEngine.isAvailable)
+        #if DEBUG
+        // `-capabilities appleTV4K|appleTV4KSDR|appleTVHD` lets the simulator decide like a real box (development only).
+        if let preset = capabilityPreset(named: UserDefaults.standard.string(forKey: "capabilities")) {
+            capabilities = preset
+            capabilities.advancedEngineAvailable = AdvancedPlaybackEngine.isAvailable
+            capabilities.modelName += " (simulated)"
+            Log.notice(.playback, "Device capabilities overridden by launch argument")
+        }
+        #endif
         Log.info(.playback, "Device capabilities: \(capabilities)")
 
         let transportFactory: @Sendable () -> any HTTPTransport
@@ -74,8 +83,22 @@ final class AppEnvironment {
         }
     }
 
+    #if DEBUG
+    private static func capabilityPreset(named name: String?) -> DeviceCapabilities? {
+        switch name?.lowercased() {
+        case "appletv4k", "appletv4khdr": return .appleTV4KHDR
+        case "appletv4ksdr": return .appleTV4KSDR
+        case "appletvhd": return .appleTVHD
+        default: return nil
+        }
+    }
+    #endif
+
     /// Audio routes can change (receiver switched on); re-probe cheaply.
     func refreshCapabilitiesIfNeeded() {
+        #if DEBUG
+        if UserDefaults.standard.string(forKey: "capabilities") != nil { return }
+        #endif
         let fresh = DeviceCapabilityProbe.probe(advancedEngineAvailable: AdvancedPlaybackEngine.isAvailable)
         if fresh != capabilities {
             Log.info(.playback, "Device capabilities changed: \(fresh)")

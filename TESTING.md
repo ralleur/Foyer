@@ -29,6 +29,15 @@ Scripts/e2e-mock.sh                       # starts the server, reinstalls the ap
 open build/e2e/shots                      # numbered PNGs per step; server log next to them
 ```
 
+## Smoke tour against a real server
+
+```bash
+FOYER_REAL_SERVER=http://server:8096 FOYER_REAL_USER=name FOYER_REAL_PASSWORD=secret \
+FOYER_CAPABILITIES=appleTV4K Scripts/e2e-real.sh
+```
+
+`FoyerUITests/RealServerTour` signs in with username/password, plays the first Continue Watching item, the first movie and the primary episode of the first series for a few seconds each and saves screenshots; the script polls `/Sessions` meanwhile and writes what the server sees (play method, position, transcoding info) to `build/e2e-real/sessions.log`. Credentials are read from the environment only. `FOYER_CAPABILITIES` maps to the `-capabilities` launch argument (`appleTV4K`, `appleTV4KSDR`, `appleTVHD`; debug builds only) so the simulator decides routes like a real box. The tour touches watch state (a few seconds of progress per item); Jellyfin discards positions under five minutes on stop, a resumed item keeps its new position.
+
 The mock server can also be used interactively: `Tools/MockJellyfin/server.py --media Tools/MockJellyfin/media` and sign in as user `test` (no password) from a simulator or an Apple TV on the same network. It implements the endpoints listed in JELLYFIN.md, keeps watch state in memory and transcodes/remuxes to HLS with ffmpeg when the app asks for server help. It is a test tool, not a Jellyfin replacement.
 
 ## Status

@@ -168,7 +168,7 @@ final class PlaybackCoordinator: Identifiable {
             let resolvedStart = startPosition ?? initialStartPosition()
             requestedStartPosition = resolvedStart
             let request = PlaybackInfoRequest(userId: client.userId, mediaSourceId: source.id, deviceProfile: decision.deviceProfile,
-                                              maxStreamingBitrate: preferences.playback.maxStreamingBitrate,
+                                              maxStreamingBitrate: preferences.playback.maxStreamingBitrate ?? DeviceProfileBuilder.unlimitedBitrate,
                                               startTimeTicks: JellyfinTicks.ticks(seconds: resolvedStart),
                                               audioStreamIndex: decision.audioStreamIndex, subtitleStreamIndex: decision.subtitleStreamIndex,
                                               enableDirectPlay: decision.enableDirectPlay && decision.route.method == .directPlay,

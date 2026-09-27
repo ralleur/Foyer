@@ -35,7 +35,11 @@ Implemented in `PlaybackDecisionEngine.decide` (FoyerCore/PlaybackDecision). Inp
 Bitmap subtitle selected on a server route → burn-in (route becomes Transcode) unless burn-in is disabled (subtitle dropped).
 ```
 
-After `PlaybackInfo`, `reconcile` applies the server's verdict: no direct play but a transcoding URL → Direct Stream or Transcode (depending on `VideoCodec=` in the URL / `SupportsDirectStream`); direct play granted although we asked for a remux → Native Direct Play.
+After `PlaybackInfo`, `reconcile` applies the server's verdict: no direct play but a transcoding URL → Direct Stream when the URL's `VideoCodec=` list still contains the source codec (Jellyfin reports `SupportsDirectStream=false` for every MKV → fMP4 conversion, even when it copies the video), otherwise Transcode; direct play granted although we asked for a remux → Native Direct Play.
+
+For HEVC HDR/Dolby Vision remuxes Jellyfin's master playlist always carries a second, re-encoded H.264/SDR variant ("SDR entrance", same `BANDWIDTH`) regardless of the client profile. AVPlayer picks the first variant it can play: an Apple TV 4K with Dolby Vision takes the HEVC/DV copy, the simulator (no DV/PQ) falls back to the H.264 encode. The variant choice cannot be steered from the client; the device test plan checks it on real hardware.
+
+Both device profiles always carry explicit `MaxStreamingBitrate`/`MaxStaticBitrate` values (the user's quality setting or 200 Mbit/s for "original"), because Jellyfin substitutes 8 Mbit/s when they are omitted and then re-encodes anything above it.
 
 Every decision carries `reasons` (positive facts and blockers of the other engine) and `compromises` (e.g. "TrueHD becomes E-AC-3"). They are logged under PLAYBACK and shown in Settings › Debug › Last playback decision and the player's info panel when debug mode is on.
 
@@ -49,7 +53,7 @@ The advanced engine treats an end-of-file that arrives long before the known dur
 
 `DeviceProfileBuilder` produces one of two Jellyfin `DeviceProfile`s per request:
 
-**Native**: direct-play containers `mp4,m4v` and `mov` with `h264,hevc,(av1),mpeg4` × `aac,ac3,eac3,alac,flac,mp3,pcm_*`; codec profiles restrict H.264 to 8-bit ≤ L5.2 non-interlaced, HEVC to Main/Main 10 with `VideoRangeType ∈ supported set` and **`VideoCodecTag ∈ hvc1|dvh1` (required)** — which makes the server remux `hev1`-tagged MP4s and MKVs; `Width ≤ device max`, `VideoFramerate ≤ 60`. Subtitle profiles: text formats `External` (Foyer renders), `mov_text` `Embed`, text formats `Hls`, bitmap formats `Encode` only when burn-in is allowed for this request.
+**Native**: direct-play containers `mp4,m4v` and `mov` with `h264,hevc,(av1),mpeg4` × `aac,ac3,eac3,alac,flac,mp3,pcm_*`; codec profiles restrict H.264 to 8-bit ≤ L5.2 non-interlaced, HEVC to Main/Main 10 with `VideoRangeType ∈ supported set` and `VideoCodecTag ∈ hvc1|dvh1` (**not** required, like Jellyfin's own Safari profile: MKV sources have no tag and must stay remuxable, an `hev1`-tagged MP4 fails the check and is remuxed); `Width ≤ device max`, `VideoFramerate ≤ 60`. Subtitle profiles: text formats `External` (Foyer renders), `mov_text` `Embed`, text formats `Hls`, bitmap formats `Encode` only when burn-in is allowed for this request.
 
 **Advanced**: one direct-play profile with every container/video/audio codec FFmpeg handles; codec profiles cap VP9/AV1 software decoding at 1080p (Apple TV HD: 720p); subtitle profiles `Embed` for all formats plus `External` for text.
 

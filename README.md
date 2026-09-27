@@ -44,7 +44,7 @@ End-to-end check without a Jellyfin login (synthetic library + mock server, both
 Scripts/e2e-mock.sh               # see TESTING.md; needs ffmpeg for the media generator
 ```
 
-> **Verification status.** The app builds warning-free with Xcode 27 for the tvOS 27 simulator; core, app and UI tests pass there. Playback of MP4 (system player), MKV with HEVC/AC-3/DTS/TrueHD/FLAC and SRT/ASS (mpv engine, VideoToolbox decoding), an HDR10 remux via HLS, resume, watch-state reporting and the fallback chain were exercised against the mock server in the simulator. Not yet verified: a real Apple TV (HDR/Dolby Vision output, audio passthrough, frame-rate matching) and a real Jellyfin server with credentials — see [TESTING.md](TESTING.md) for the device test plan.
+> **Verification status.** The app builds warning-free with Xcode 27 for the tvOS 27 simulator; core, app and UI tests pass there. Playback of MP4 (system player), MKV with HEVC/AC-3/DTS/TrueHD/FLAC and SRT/ASS (mpv engine, VideoToolbox decoding), an HDR10 remux via HLS, resume, watch-state reporting and the fallback chain were exercised against the mock server, and sign-in, browsing, resume, direct play of 4K HEVC MKV, forced-subtitle selection, the HDR remux path and progress reporting against a real Jellyfin 10.11 server (`Scripts/e2e-real.sh`). Not yet verified: a real Apple TV (HDR/Dolby Vision output, audio passthrough, frame-rate matching) — see [TESTING.md](TESTING.md) for the device test plan.
 
 ## Jellyfin setup
 

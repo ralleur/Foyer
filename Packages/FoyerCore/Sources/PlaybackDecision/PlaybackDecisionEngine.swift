@@ -254,11 +254,17 @@ public struct PlaybackDecisionEngine: Sendable {
         let serverSaysDirectPlay = server.supportsDirectPlay ?? false
         let hasTranscodingURL = !(server.transcodingUrl ?? "").isEmpty
 
+        // Jellyfin never flags an MKV → fMP4/HLS conversion as "direct stream", even when it copies the video;
+        // whether the source codec appears in the URL's VideoCodec list tells us if the stream can be kept.
+        let offeredCodecs = Self.videoCodecs(inTranscodingURL: server.transcodingUrl ?? "")
+        let sourceCodec = server.videoStream?.normalizedCodec ?? ""
+        let videoMayBeCopied = (server.supportsDirectStream ?? false) || offeredCodecs.isEmpty || offeredCodecs.contains(sourceCodec)
+
         switch decision.route {
         case .nativeDirectPlay, .advancedDirectPlay:
             if !serverSaysDirectPlay {
                 if hasTranscodingURL {
-                    let method = (server.supportsDirectStream ?? false) && !(server.transcodingUrl ?? "").lowercased().contains("videocodec=") ? PlaybackRoute.directStream : .transcode
+                    let method: PlaybackRoute = videoMayBeCopied ? .directStream : .transcode
                     result.route = method
                     extra.append("server declined direct play; using its \(method.displayName.lowercased()) stream")
                 } else {
@@ -267,9 +273,11 @@ public struct PlaybackDecisionEngine: Sendable {
             }
         case .directStream:
             if hasTranscodingURL {
-                if (server.transcodingUrl ?? "").lowercased().contains("videocodec=") && !(server.supportsDirectStream ?? true) {
+                if !videoMayBeCopied {
                     result.route = .transcode
                     extra.append("server needs to re-encode the video")
+                } else if !(server.supportsDirectStream ?? true) {
+                    extra.append("server repackages into fMP4/HLS and keeps the video stream when it fits the profile")
                 }
             } else if serverSaysDirectPlay {
                 // Server thinks the file itself is fine for our profile; trust it.
@@ -289,5 +297,16 @@ public struct PlaybackDecisionEngine: Sendable {
         if let audio = server.defaultAudioStreamIndex, result.audioStreamIndex == nil { result.audioStreamIndex = audio }
         result.reasons.append(contentsOf: extra)
         return result
+    }
+
+    /// Lower-cased codec list from a Jellyfin transcoding URL (`VideoCodec=hevc,h264`), empty when absent.
+    static func videoCodecs(inTranscodingURL url: String) -> [String] {
+        guard let query = url.split(separator: "?", maxSplits: 1).dropFirst().first else { return [] }
+        for pair in query.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2, parts[0].lowercased() == "videocodec" else { continue }
+            return parts[1].removingPercentEncoding?.lowercased().split(separator: ",").map(String.init) ?? []
+        }
+        return []
     }
 }

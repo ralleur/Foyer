@@ -249,7 +249,8 @@ final class DecisionEngineTests: XCTestCase {
         XCTAssertEqual(p.name, "Foyer tvOS (native)")
         XCTAssertTrue(p.directPlayProfiles.contains { $0.container.contains("mp4") && $0.videoCodec!.contains("hevc") })
         XCTAssertFalse(p.directPlayProfiles.contains { $0.container.contains("mkv") })
-        XCTAssertTrue(p.codecProfiles.contains { $0.codec == "hevc" && $0.conditions.contains { $0.property == .videoCodecTag && $0.isRequired } })
+        // The tag condition must not be required: MKV sources have no codec tag and must stay remuxable (see DEVELOPMENT.md).
+        XCTAssertTrue(p.codecProfiles.contains { $0.codec == "hevc" && $0.conditions.contains { $0.property == .videoCodecTag && !$0.isRequired } })
         XCTAssertTrue(p.subtitleProfiles.contains { $0.format == "srt" && $0.method == .external })
         XCTAssertFalse(p.subtitleProfiles.contains { $0.method == .encode })
         XCTAssertEqual(p.transcodingProfiles.first?.protocol, "hls")
@@ -293,6 +294,18 @@ final class DecisionEngineTests: XCTestCase {
         server.supportsDirectStream = false
         server.transcodingUrl = "/videos/x/master.m3u8?VideoCodec=h264&PlaySessionId=1"
         XCTAssertEqual(engine.reconcile(decision, with: server).route, .transcode)
+    }
+
+    func test_reconcile_remuxWithVideoCopyStaysDirectStream() {
+        // Jellyfin 10.11 answers an MKV → fMP4 request with SupportsDirectStream=false but lists the source codec first.
+        let decision = decide(TestMedia.mkv4KHEVCHDR10)
+        var server = TestMedia.mkv4KHEVCHDR10
+        server.supportsDirectPlay = false
+        server.supportsDirectStream = false
+        server.transcodingUrl = "/videos/x/master.m3u8?VideoCodec=hevc,h264&AudioCodec=aac&PlaySessionId=1"
+        let reconciled = engine.reconcile(decision, with: server)
+        XCTAssertEqual(reconciled.route, .directStream)
+        XCTAssertTrue(reconciled.reasons.last!.contains("keeps the video stream"))
     }
 
     func test_reconcile_keepsDirectPlayWhenServerAgrees() {

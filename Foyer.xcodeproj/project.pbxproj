@@ -73,6 +73,7 @@
 		DECEA63B2DD597B6A900061B /* JellyfinKit in Frameworks */ = {isa = PBXBuildFile; productRef = CCD968E078D43ED9986B4868 /* JellyfinKit */; };
 		EDD5BBAF330D76FDC00256C1 /* DisplayCriteriaController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377201FA4285A1DC38BB6A4F /* DisplayCriteriaController.swift */; };
 		EDF618427E31D2370B4A5D79 /* AppFoundationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EC6D097396312C613E1335 /* AppFoundationTests.swift */; };
+		F38CDDF9F36B6EEDBA16E793 /* RealServerTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30771143809746370303284 /* RealServerTour.swift */; };
 		F8EFBAA9467A9CC180A3EFBB /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE892E8433E9CD3997FC5E34 /* AppLog.swift */; };
 /* End PBXBuildFile section */
 
@@ -156,6 +157,7 @@
 		EC6F95229FF96BA04B2940DE /* RemoteInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteInputView.swift; sourceTree = "<group>"; };
 		ECEB97F50A228471E7FC2D1C /* Primitives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Primitives.swift; sourceTree = "<group>"; };
 		F2F61F0732E0938D72D92699 /* PlaybackSessionReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSessionReporter.swift; sourceTree = "<group>"; };
+		F30771143809746370303284 /* RealServerTour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealServerTour.swift; sourceTree = "<group>"; };
 		F4C95F7317CEEA0EFD5F121B /* SubtitleOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubtitleOverlayView.swift; sourceTree = "<group>"; };
 		F69C2F7ACA49569A3AC901FB /* Foyer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Foyer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA1319A9DD2886D615FF41EE /* FoyerFoundationErrorBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoyerFoundationErrorBridge.swift; sourceTree = "<group>"; };
@@ -296,6 +298,7 @@
 			children = (
 				9279B6AC1F949849F1E5082E /* FoyerUITests.swift */,
 				8248FD3568581C8780DBA912 /* MockServerTour.swift */,
+				F30771143809746370303284 /* RealServerTour.swift */,
 			);
 			path = FoyerUITests;
 			sourceTree = "<group>";
@@ -635,6 +638,7 @@
 			files = (
 				DB03E2B3F3C9652D8131613F /* FoyerUITests.swift in Sources */,
 				35CF2A4EBEE4F765B1BC64DA /* MockServerTour.swift in Sources */,
+				F38CDDF9F36B6EEDBA16E793 /* RealServerTour.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
