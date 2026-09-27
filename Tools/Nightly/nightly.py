@@ -139,13 +139,21 @@ def budget_for(it, per_item):
     return per_item if it.get("Type") == "Movie" else min(per_item, 60)
 
 
+def signature_of(it):
+    """What must change for a title to be checked again: the file, not its metadata."""
+    src = (it.get("MediaSources") or [{}])[0]
+    return f"{src.get('Path')}|{src.get('Size')}|{it.get('RunTimeTicks')}"
+
+
 def select_items(items, ledger, mode, limit):
-    chosen = []
+    chosen, seen = [], set()
     for it in ordered(items):
-        src = (it.get("MediaSources") or [{}])[0]
         key = it["Id"]
+        if key in seen:
+            continue
+        seen.add(key)
         entry = ledger.get(key)
-        signature = f"{it.get('Etag')}|{src.get('Size')}|{src.get('Path')}"
+        signature = signature_of(it)
         if mode == "all":
             take = True
         elif mode == "failed":
@@ -181,6 +189,8 @@ def run(args, env):
     chosen = select_items(items, ledger, args.mode, args.limit)
     estimate = sum(budget_for(it, args.per_item) + 8 for it in chosen) / 3600
     print(f"{len(items)} items in the library, {len(chosen)} to check ({args.mode}, about {estimate:.1f} h), deadline {args.deadline}", flush=True)
+    if len(set(it["Id"] for it in chosen)) != len(chosen):
+        sys.exit("internal error: an item appears twice in the queue")
     if args.dry_run:
         for it in chosen[:50]:
             print("  ", describe(it))
@@ -210,9 +220,22 @@ def run(args, env):
     print("app launched; waiting for the self-test …", flush=True)
     deadline = parse_deadline(args.deadline) + datetime.timedelta(minutes=8)
     state_path, report_path = os.path.join(selftest, "state.json"), os.path.join(selftest, "report.jsonl")
+    by_id = {it["Id"]: it for it in items}
+    recorded = 0
+    def absorb_reports():
+        """Folds new report lines into the ledger right away, so an interrupted night is not repeated."""
+        nonlocal recorded
+        reports = [json.loads(l) for l in open(report_path)] if os.path.exists(report_path) else []
+        for r in reports[recorded:]:
+            record(ledger, r, by_id.get(r["id"], {}), date)
+        if len(reports) > recorded:
+            recorded = len(reports)
+            json.dump(ledger, open(ledger_path, "w"), indent=1, sort_keys=True)
+        return reports
     last_index = -1
     while True:
         time.sleep(15)
+        absorb_reports()
         state = json.load(open(state_path)) if os.path.exists(state_path) else None
         if state and state.get("index") != last_index:
             last_index = state["index"]
@@ -227,7 +250,7 @@ def run(args, env):
             print("past the deadline; stopping the app", flush=True)
             sh("xcrun", "simctl", "terminate", udid, BUNDLE, check=False, capture=True)
             break
-    reports = [json.loads(l) for l in open(report_path)] if os.path.exists(report_path) else []
+    reports = absorb_reports()
     for name in ("report.jsonl", "state.json", "queue.json"):
         src = os.path.join(selftest, name)
         if os.path.exists(src):
@@ -235,18 +258,15 @@ def run(args, env):
     log = os.path.join(container, "Library", "Caches", "Logs", "vela.log")
     if os.path.exists(log):
         sh("cp", log, os.path.join(out, "app.log"))
-    by_id = {it["Id"]: it for it in items}
-    for r in reports:
-        it = by_id.get(r["id"], {})
-        src = (it.get("MediaSources") or [{}])[0]
-        entry = ledger.get(r["id"], {"failures": 0})
-        entry.update({"name": describe(it) if it else r.get("name"), "signature": f"{it.get('Etag')}|{src.get('Size')}|{src.get('Path')}",
-                      "lastChecked": date, "result": r["result"], "route": r.get("route"), "failures": entry.get("failures", 0) + (1 if r["result"] == "fail" else 0)})
-        if r["result"] != "fail":
-            entry["failures"] = 0
-        ledger[r["id"]] = entry
-    json.dump(ledger, open(ledger_path, "w"), indent=1, sort_keys=True)
     write_summary(out, reports, ledger, items)
+
+
+def record(ledger, report, item, date):
+    entry = ledger.get(report["id"], {"failures": 0})
+    failures = entry.get("failures", 0) + 1 if report["result"] == "fail" else 0
+    entry.update({"name": describe(item) if item else report.get("name"), "signature": signature_of(item) if item else entry.get("signature"),
+                  "lastChecked": date, "result": report["result"], "route": report.get("route"), "failures": failures})
+    ledger[report["id"]] = entry
 
 
 def parse_deadline(text):
