@@ -28,6 +28,8 @@ final class Preferences {
     var debugModeEnabled: Bool { didSet { defaults.set(debugModeEnabled, forKey: "debugModeEnabled") } }
     /// Remembered audio language per series ("Remember audio selections" behaviour).
     var rememberedAudioLanguages: [String: String] { didSet { save(rememberedAudioLanguages, key: "rememberedAudioLanguages") } }
+    /// Subtitle choices the user made in the player (see `subtitleChoice(for:)`).
+    private(set) var subtitleMemory: SubtitleMemory { didSet { save(subtitleMemory, key: "subtitleMemory") } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -38,6 +40,7 @@ final class Preferences {
         showTechnicalBadges = defaults.object(forKey: "showTechnicalBadges") as? Bool ?? true
         debugModeEnabled = defaults.object(forKey: "debugModeEnabled") as? Bool ?? false
         rememberedAudioLanguages = Self.load([String: String].self, key: "rememberedAudioLanguages", defaults: defaults) ?? [:]
+        subtitleMemory = Self.load(SubtitleMemory.self, key: "subtitleMemory", defaults: defaults) ?? SubtitleMemory()
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {
@@ -59,6 +62,31 @@ final class Preferences {
         }
     }
 
+    /// Remembers a subtitle choice from the player: for this film (or this series) and as the starting point for
+    /// the next new film (or series).
+    func rememberSubtitle(_ choice: SubtitleChoice, itemId: String, seriesId: String?) {
+        var memory = subtitleMemory
+        if let seriesId {
+            memory.bySeries[seriesId] = choice
+            memory.lastSeries = choice
+        } else {
+            memory.byItem[itemId] = choice
+            memory.lastMovie = choice
+        }
+        memory.trim(to: 500)
+        subtitleMemory = memory
+    }
+
+    /// The remembered choice for a title: this film's (series') own, else the last one made for any film (series).
+    func subtitleChoice(itemId: String, seriesId: String?) -> (choice: SubtitleChoice, source: String)? {
+        if let seriesId {
+            if let choice = subtitleMemory.bySeries[seriesId] { return (choice, "last choice for this series") }
+            return subtitleMemory.lastSeries.map { ($0, "last choice in a series") }
+        }
+        if let choice = subtitleMemory.byItem[itemId] { return (choice, "last choice for this film") }
+        return subtitleMemory.lastMovie.map { ($0, "last choice in a film") }
+    }
+
     func resetForUITests() {
         languages = .default
         playback = .default
@@ -67,5 +95,19 @@ final class Preferences {
         showTechnicalBadges = true
         debugModeEnabled = true
         rememberedAudioLanguages = [:]
+        subtitleMemory = SubtitleMemory()
+    }
+}
+
+struct SubtitleMemory: Codable, Equatable {
+    var byItem: [String: SubtitleChoice] = [:]
+    var bySeries: [String: SubtitleChoice] = [:]
+    var lastMovie: SubtitleChoice?
+    var lastSeries: SubtitleChoice?
+
+    /// Keeps the stored dictionaries bounded (dictionary order is arbitrary; any old entry may go).
+    mutating func trim(to limit: Int) {
+        while byItem.count > limit, let key = byItem.keys.first { byItem.removeValue(forKey: key) }
+        while bySeries.count > limit, let key = bySeries.keys.first { bySeries.removeValue(forKey: key) }
     }
 }

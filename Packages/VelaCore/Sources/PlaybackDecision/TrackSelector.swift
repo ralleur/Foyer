@@ -47,17 +47,55 @@ public struct TrackSelection: Sendable, Hashable {
     }
 }
 
+/// A subtitle choice the user made in the player, remembered per title/series and carried over to new ones.
+public enum SubtitleChoice: Codable, Hashable, Sendable {
+    case off
+    case track(language: String?, forced: Bool, sdh: Bool)
+}
+
 /// Picks the initial audio and subtitle tracks according to the user's language rules.
 public enum TrackSelector {
+    /// - Parameter rememberedSubtitle: the user's earlier choice; wins over the language rules when the title has a
+    ///   track in that language (or when it was "off"). `source` names where it came from for the log.
     public static func select(streams: [MediaStream], preferences prefs: LanguagePreferences,
-                              rememberedAudioLanguage: String? = nil) -> TrackSelection {
+                              rememberedAudioLanguage: String? = nil,
+                              rememberedSubtitle: (choice: SubtitleChoice, source: String)? = nil) -> TrackSelection {
         let audioTracks = streams.filter { $0.isAudio }
         let subtitleTracks = streams.filter { $0.isSubtitle }
         var reasons: [String] = []
 
         let audio = selectAudio(audioTracks, prefs: prefs, remembered: rememberedAudioLanguage, reasons: &reasons)
+        if let remembered = rememberedSubtitle, let resolved = resolve(remembered.choice, in: subtitleTracks) {
+            let label = resolved.map { LanguageCode.displayName($0.language) ?? $0.language ?? "?" } ?? "off"
+            reasons.append("subtitles: \(label) (\(remembered.source))")
+            return TrackSelection(audioStreamIndex: audio?.index, subtitleStreamIndex: resolved?.index, reasons: reasons)
+        }
         let subtitle = selectSubtitle(subtitleTracks, audio: audio, prefs: prefs, reasons: &reasons)
         return TrackSelection(audioStreamIndex: audio?.index, subtitleStreamIndex: subtitle?.index, reasons: reasons)
+    }
+
+    /// `.some(nil)` = subtitles off, `.some(track)` = that track, `nil` = the title has nothing in that language.
+    static func resolve(_ choice: SubtitleChoice, in tracks: [MediaStream]) -> MediaStream?? {
+        switch choice {
+        case .off:
+            return .some(nil)
+        case .track(let language, let forced, let sdh):
+            guard let language else { return nil }
+            let inLanguage = tracks.filter { LanguageCode.matches($0.language, language) }
+            guard !inLanguage.isEmpty else { return nil }
+            let sameKind = inLanguage.filter { ($0.isForced == true) == forced }
+            let pool = sameKind.isEmpty ? inLanguage : sameKind
+            let ranked = pool.filter { $0.isSDH == sdh } + pool.filter { $0.isSDH != sdh }
+            return .some(preferExternalText(ranked.first!, among: inLanguage))
+        }
+    }
+
+    /// Jellyfin reads the whole file to extract an embedded text track (an hour for a 50 GB remux on a slow disk,
+    /// starving the video stream meanwhile); an external file in the same language loads at once.
+    static func preferExternalText(_ pick: MediaStream, among candidates: [MediaStream]) -> MediaStream {
+        guard pick.isExternal != true, pick.isTextSubtitle else { return pick }
+        let externals = candidates.filter { $0.isExternal == true && $0.isTextSubtitle && ($0.isForced == true) == (pick.isForced == true) }
+        return externals.first { $0.isSDH == pick.isSDH } ?? externals.first ?? pick
     }
 
     // MARK: Audio
@@ -158,13 +196,7 @@ public enum TrackSelector {
                 let regular = inLanguage.filter { !$0.isSDH }
                 let pool = prefs.preferSDH ? (sdh.isEmpty ? regular : sdh) : (regular.isEmpty ? sdh : regular)
                 let pick = pool.first { $0.isDefault == true } ?? pool.first { $0.isExternal != true } ?? pool.first
-                // Jellyfin reads the whole file to extract an embedded text track (an hour for a 50 GB remux on a
-                // slow disk, starving the video stream meanwhile); an external file in the same language loads at once.
-                if let pick, pick.isExternal != true, pick.isTextSubtitle,
-                   let external = (pool + inLanguage).first(where: { $0.isExternal == true && $0.isTextSubtitle }) {
-                    return external
-                }
-                return pick
+                return pick.map { preferExternalText($0, among: pool + inLanguage) }
             }
             return nil
         }

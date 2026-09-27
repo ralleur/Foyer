@@ -94,6 +94,13 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
         item.navigationMarkerGroups = chapterGroups(for: request)
         observe(item)
         pendingSeek = request.startPosition > 1 ? request.startPosition : nil
+        if let start = pendingSeek {
+            // Seek before the player gets the item: otherwise AVPlayer first loads the init segment and segment 0,
+            // and Jellyfin restarts the remux the HLS warm-up started at the resume point from 0:00 (on a slow
+            // disk the player then waits for a segment that is half an hour of remuxing away).
+            item.seek(to: CMTime(seconds: start, preferredTimescale: 600), toleranceBefore: CMTime(seconds: 1, preferredTimescale: 600),
+                      toleranceAfter: .zero, completionHandler: nil)
+        }
         player.replaceCurrentItem(with: item)
         controller.title = request.title
         updateContextualActions()
@@ -180,8 +187,13 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
             }
             if let seekTo = pendingSeek {
                 pendingSeek = nil
-                player.seek(to: CMTime(seconds: seekTo, preferredTimescale: 600), toleranceBefore: CMTime(seconds: 1, preferredTimescale: 600), toleranceAfter: .zero) { [weak self] _ in
-                    Task { @MainActor [weak self] in self?.player.play() }
+                if abs(item.currentTime().seconds - seekTo) < 2 {
+                    // The seek before loading took effect.
+                    player.play()
+                } else {
+                    player.seek(to: CMTime(seconds: seekTo, preferredTimescale: 600), toleranceBefore: CMTime(seconds: 1, preferredTimescale: 600), toleranceAfter: .zero) { [weak self] _ in
+                        Task { @MainActor [weak self] in self?.player.play() }
+                    }
                 }
             } else {
                 player.play()

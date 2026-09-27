@@ -165,7 +165,8 @@ final class PlaybackCoordinator: Identifiable {
 
             // 2. Default tracks.
             let remembered = item.seriesId.flatMap { preferences.rememberedAudioLanguages[$0] }
-            let selection = TrackSelector.select(streams: source.streams, preferences: preferences.languages, rememberedAudioLanguage: remembered)
+            let selection = TrackSelector.select(streams: source.streams, preferences: preferences.languages, rememberedAudioLanguage: remembered,
+                                                 rememberedSubtitle: preferences.subtitleChoice(itemId: item.id, seriesId: item.seriesId))
             let audioIndex = overrideAudio ?? selectedAudioIndex ?? selection.audioStreamIndex
             let subtitleIndex: Int? = overrideSubtitle == nil && selectedSubtitleIndex == nil ? selection.subtitleStreamIndex : (overrideSubtitle == -1 ? nil : (overrideSubtitle ?? selectedSubtitleIndex))
             Log.info(.playback, "Track selection: \(selection.reasons.joined(separator: "; "))")
@@ -635,6 +636,8 @@ final class PlaybackCoordinator: Identifiable {
         let index = track.streamIndex
         guard !transitioning, index != selectedSubtitleIndex else { return }
         guard let engine, let source = serverSource else { return }
+        preferences.rememberSubtitle(index == nil ? .off : .track(language: track.language, forced: track.isForced, sdh: track.isSDH),
+                                     itemId: item.id, seriesId: item.seriesId)
         let stream = source.stream(index: index)
         let isBitmap = stream?.isBitmapSubtitle ?? false
         if isBitmap, engine.kind == .native, capabilities.bitmapOverlayAvailable, let index {

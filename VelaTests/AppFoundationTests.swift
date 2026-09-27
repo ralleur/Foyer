@@ -23,6 +23,28 @@ final class ErrorPresentationTests: XCTestCase {
 
 @MainActor
 final class PreferencesTests: XCTestCase {
+    func testSubtitleMemoryPerTitleAndForNewTitles() {
+        let suite = "PreferencesTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        XCTAssertNil(prefs.subtitleChoice(itemId: "movieA", seriesId: nil))
+
+        let english = SubtitleChoice.track(language: "en", forced: false, sdh: false)
+        prefs.rememberSubtitle(english, itemId: "movieA", seriesId: nil)
+        prefs.rememberSubtitle(.off, itemId: "ep1", seriesId: "seriesX")
+
+        let reloaded = Preferences(defaults: defaults)
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "movieA", seriesId: nil)?.choice, english)
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "movieNew", seriesId: nil)?.choice, english, "a new film starts with the last film's choice")
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "ep7", seriesId: "seriesX")?.choice, .off)
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "e1", seriesId: "seriesNew")?.choice, .off, "a new series starts with the last series' choice")
+
+        reloaded.rememberSubtitle(.off, itemId: "movieB", seriesId: nil)
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "movieA", seriesId: nil)?.choice, english, "each film keeps its own choice")
+        XCTAssertEqual(reloaded.subtitleChoice(itemId: "movieC", seriesId: nil)?.choice, .off)
+    }
+
     func testRoundTrip() {
         let suite = "PreferencesTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

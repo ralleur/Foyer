@@ -62,6 +62,49 @@ final class TrackSelectorTests: XCTestCase {
         XCTAssertEqual(TrackSelector.select(streams: streams, preferences: prefs).subtitleStreamIndex, 3)
     }
 
+    func testRememberedEnglishWinsOverGermanRule() {
+        let streams = [
+            TestMedia.audio(index: 1, codec: "truehd", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 2, codec: "subrip", language: "ger"),
+            TestMedia.subtitle(index: 3, codec: "subrip", language: "eng"),
+            TestMedia.subtitle(index: 4, codec: "subrip", language: "eng", forced: true),
+        ]
+        let sel = TrackSelector.select(streams: streams, preferences: prefs,
+                                       rememberedSubtitle: (.track(language: "eng", forced: false, sdh: false), "last choice"))
+        XCTAssertEqual(sel.subtitleStreamIndex, 3)
+        XCTAssertTrue(sel.reasons.contains { $0.contains("last choice") })
+    }
+
+    func testRememberedOffWins() {
+        let streams = [
+            TestMedia.audio(index: 1, codec: "aac", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 2, codec: "subrip", language: "ger"),
+        ]
+        XCTAssertNil(TrackSelector.select(streams: streams, preferences: prefs, rememberedSubtitle: (.off, "last choice")).subtitleStreamIndex)
+    }
+
+    func testRememberedLanguageMissingFallsBackToRules() {
+        let streams = [
+            TestMedia.audio(index: 1, codec: "aac", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 2, codec: "subrip", language: "ger"),
+        ]
+        let sel = TrackSelector.select(streams: streams, preferences: prefs,
+                                       rememberedSubtitle: (.track(language: "fre", forced: false, sdh: false), "last choice"))
+        XCTAssertEqual(sel.subtitleStreamIndex, 2)
+    }
+
+    func testRememberedEnglishUsesExternalFileOverEmbeddedText() {
+        // Companion: switching to English picked the embedded track and made Jellyfin extract the whole file.
+        let streams = [
+            TestMedia.audio(index: 1, codec: "truehd", language: "eng", isDefault: true),
+            TestMedia.subtitle(index: 3, codec: "subrip", language: "eng"),
+            TestMedia.subtitle(index: 13, codec: "subrip", language: "eng", external: true, sdh: true),
+        ]
+        let sel = TrackSelector.select(streams: streams, preferences: prefs,
+                                       rememberedSubtitle: (.track(language: "eng", forced: false, sdh: false), "this film"))
+        XCTAssertEqual(sel.subtitleStreamIndex, 13)
+    }
+
     func testPreferSDH() {
         var p = prefs
         p.preferSDH = true
