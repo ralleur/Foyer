@@ -102,9 +102,13 @@ final class PlaybackCoordinator: Identifiable {
 
     // MARK: Lifecycle
 
+    /// Stream indices requested by whoever started playback (remote control); `-1` subtitle = off.
+    var preferredAudioStreamIndex: Int?
+    var preferredSubtitleStreamIndex: Int?
+
     func begin() {
         guard startTask == nil else { return }
-        startTask = Task { await prepare(startPosition: nil, overrideAudio: nil, overrideSubtitle: nil) }
+        startTask = Task { await prepare(startPosition: nil, overrideAudio: preferredAudioStreamIndex, overrideSubtitle: preferredSubtitleStreamIndex) }
     }
 
     func close() {

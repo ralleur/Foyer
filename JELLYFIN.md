@@ -7,7 +7,8 @@ All server communication goes through `JellyfinClient` (FoyerCore/JellyfinKit). 
 - Header on every request: `Authorization: MediaBrowser Client="Foyer", Device="<Apple TV name>", DeviceId="<per-install UUID>", Version="<app version>", Token="<access token>"`. The token is omitted for anonymous calls.
 - `POST /Users/AuthenticateByName` `{Username, Pw}` → `AccessToken`, `User`, `ServerId`.
 - Quick Connect: `GET /QuickConnect/Enabled`, `POST /QuickConnect/Initiate` (falls back to `GET` on 404/405 for older servers), poll `GET /QuickConnect/Connect?secret=` every 2 s, then `POST /Users/AuthenticateWithQuickConnect` `{Secret}`.
-- `POST /Sessions/Capabilities/Full` after sign-in (`PlayableMediaTypes: Video`, media control supported) so the session shows correctly in the dashboard.
+- `POST /Sessions/Capabilities/Full` after sign-in (`PlayableMediaTypes: Video`, `SupportsMediaControl`, `SupportedCommands: Play, PlayState, DisplayMessage, SetAudioStreamIndex, SetSubtitleStreamIndex`) so the session shows correctly in the dashboard and can be targeted with "Play on".
+- `ws(s)://…/socket?deviceId=` with the same `Authorization` header stays open while signed in (see *Remote control*). Jellyfin only lists a session as remote-controllable while this socket is connected. 10.11 rejects `api_key` in the query of this endpoint (403 "Token is required"), so the token must be sent as a header.
 - `POST /Sessions/Logout` on sign-out; tokens deleted from the Keychain.
 - `GET /System/Info/Public` is used to validate a server address and read its version; `GET /Users/Public` lists selectable users; `GET /Users/Me` refreshes the profile.
 
@@ -49,6 +50,20 @@ Media player URLs carry the token as `api_key` because AVFoundation and mpv cann
 | Stop | `POST /Sessions/Playing/Stopped` with the final position; `DELETE /Videos/ActiveEncodings?deviceId=&playSessionId=` for transcodes |
 
 Ticks are 100 ns (`JellyfinTicks`). `PlayedPercentage`/`PlaybackPositionTicks` from `UserData` drive progress bars and resume. After the player closes, Home, library and detail screens refresh their data from the server.
+
+## Remote control (session WebSocket)
+
+`RemoteControlService` connects to `/socket` after sign-in and reconnects with backoff (2 s → 30 s); the socket is closed while the app is in the background. Frames are `{"MessageType": …, "Data": …}`:
+
+| Message | Handling |
+| --- | --- |
+| `ForceKeepAlive` (`Data` = timeout s) | send `{"MessageType":"KeepAlive"}` every timeout/2 s |
+| `Play` `{ItemIds, PlayCommand, StartPositionTicks, StartIndex, MediaSourceId, AudioStreamIndex, SubtitleStreamIndex}` | `PlayNow`: load the item (`ItemIds[StartIndex]`), open the player at the position with the requested tracks (`SubtitleStreamIndex = -1` = off). Ids arrive as GUIDs with dashes and are normalised. `PlayNext`/`PlayLast`/`PlayInstantMix`/`PlayShuffle` need a queue and are declined with a log line; extra ids are ignored |
+| `Playstate` `{Command, SeekPositionTicks}` | `Pause`, `Unpause`, `PlayPause`, `Stop` (closes the player), `Seek`, `Rewind`/`FastForward` (±10 s), `NextTrack`/`PreviousTrack` (episodes) — routed to the presented `PlaybackCoordinator`; ignored when nothing plays |
+| `GeneralCommand` `{Name, Arguments}` | `DisplayMessage` (`Header`, `Text`, `TimeoutMs`) shows a banner over the current screen or player; `SetAudioStreamIndex`/`SetSubtitleStreamIndex` (`Index`, `-1` = off) switch tracks in place or reload; everything else is logged as unsupported |
+| `UserDataChanged`, `LibraryChanged`, `SessionEnded`, … | logged at debug level, not acted on |
+
+The server sends these when a user picks this device in the web UI's "Play on" menu or calls `POST /Sessions/{id}/Playing`, `/Playing/{command}`, `/Message` or `/Command` (`Scripts/remote.py` wraps them for device testing).
 
 ## User configuration
 

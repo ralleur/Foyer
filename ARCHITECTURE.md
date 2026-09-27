@@ -11,10 +11,12 @@ Packages/FoyerCore         Swift package, builds on Linux and Apple platforms
   Sources/PlaybackDecision DeviceCapabilities, capability checks, PlaybackDecisionEngine, DeviceProfileBuilder,
                            TrackSelector, SubtitleParser/Timeline, TrickplayGeometry, SkipSegmentPolicy,
                            NextEpisodeCountdownPolicy, ProgressReportPolicy, ResumePolicy
-  Tests/                   103 unit tests incl. the media test matrix
+  Tests/                   112 unit tests incl. the media test matrix and the session-socket protocol
 Foyer/
   App/                     FoyerApp, AppEnvironment (DI container), RootView/MainTabView, Navigation
-  Core/Session             SessionStore (accounts, sign-in, Quick Connect), KeychainStore, ServerAccount, DeviceInfo
+  Core/Session             SessionStore (accounts, sign-in, Quick Connect), KeychainStore, ServerAccount, DeviceInfo,
+                           RemoteControlService (session WebSocket: Play / Playstate / GeneralCommand)
+  Core/Logging             AppLog: OSLog + in-memory ring buffer (debug screen) + rotating file (Scripts/device-logs.sh)
   Core/Preferences         Preferences (UserDefaults-backed, observable)
   Core/Capabilities        DeviceCapabilityProbe (VideoToolbox, AVPlayer HDR modes, AVAudioSession), AudioSessionController
   Core/Images              ImagePipeline (downsampling, bounded caches), RemoteImage, ItemImages (artwork fallbacks)
@@ -52,7 +54,7 @@ SwiftUI views ── observe ──▶ view models (@Observable, @MainActor)
                             Jellyfin HTTP API
 ```
 
-`AppEnvironment` (one instance, in the SwiftUI environment) exposes `sessionStore`, `preferences`, `images`, `capabilities`, `client` and the current `playback` coordinator. `RootView` switches between onboarding and `MainTabView` based on `sessionStore.active`. Tabs are Home, one tab per video library, Search and Settings.
+`AppEnvironment` (one instance, in the SwiftUI environment) exposes `sessionStore`, `preferences`, `images`, `capabilities`, `client`, `remoteControl` and the current `playback` coordinator; it is also the `RemoteCommandHandler` that turns socket commands into `play(…)`/coordinator calls. `RootView` switches between onboarding and `MainTabView` based on `sessionStore.active`. Tabs are Home, one tab per video library, Search and Settings.
 
 ## Session and security
 

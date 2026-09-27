@@ -100,3 +100,13 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 **Observation:** Xcode 27 has no *Devices and Simulators* window; wireless pairing is done with `xcrun devicectl manage pair --device <name>` (the TV shows the code under *Remote App and Devices*). The first signed build failed with *"Your team has no devices from which to generate a provisioning profile"* because `generic/platform=tvOS` never registers a device.
 **Decision:** `Scripts/install-device.sh` builds for the concrete device (`platform=tvOS,id=<udid>`) with `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`; the first run registers the Apple TV and creates the development profile, later runs are incremental. Bash 3.2 gotcha on the way: `"$UDID…"` (ellipsis right after the name) is parsed as an unbound variable, so the script uses `${UDID}`.
 
+## Remote control was advertised, not implemented
+
+**Observation:** The capabilities posted after sign-in claimed `SupportsMediaControl` with `Play`/`PlayState` commands, but the app never opened the session WebSocket, so Jellyfin listed the Apple TV as *not* remote-controllable and "Play on Foyer" in the web UI did nothing. A claim without an implementation.
+**Decision:** `RemoteControlService` keeps `/socket` open while signed in (keep-alive replies, backoff reconnect, suspended in the background) and `AppEnvironment` handles `Play` (item, position, tracks), `Playstate` (pause/seek/stop/next…) and `GeneralCommand` (`DisplayMessage` banner, track switches). Play queues do not exist in Foyer, so `PlayNext`/`PlayLast` are declined with a log line instead of being faked. First device run: the handshake failed with 403 "Token is required" because the token was passed as `api_key` in the query, which 10.11 does not accept on `/socket`; the `Authorization: MediaBrowser … Token=` header works and the server answers with `ForceKeepAlive` right away. The protocol parsing lives in JellyfinKit (`SessionMessage`) and is unit-tested; the app test feeds frames through the dispatcher and checks the presented player. Side effect: device tests can now be driven from the Mac (`Scripts/remote.py`).
+
+## Logs from the device
+
+**Problem:** `log collect` for a paired Apple TV needs `sudo`, Xcode 27's console needs the app started from Xcode, and the debug screen's ring buffer is gone after a crash.
+**Decision:** `FileLogSink` (FoyerFoundation) appends every entry to `Library/Caches/Logs/foyer.log` (2 MB, one rotation, serial queue, failures ignored); `Scripts/device-logs.sh` copies it out of the app container with `xcrun devicectl device copy from --domain-type appDataContainer`, which works for development-signed builds without a debugger.
+

@@ -14,6 +14,7 @@ struct RootView: View {
             }
         }
         .background(Color.foyerBackground.ignoresSafeArea())
+        .remoteMessageBanner()
         .animation(.easeInOut(duration: 0.25), value: environment.sessionStore.active?.account.id)
     }
 }

@@ -32,6 +32,7 @@ struct PlayerScreen: View {
                 EmptyView()
             }
         }
+        .remoteMessageBanner()
         .onAppear {
             ImagePipelineHolder.shared = environment.images
             coordinator.begin()

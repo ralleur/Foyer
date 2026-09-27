@@ -15,6 +15,8 @@ final class AppEnvironment {
     private(set) var capabilities: DeviceCapabilities
     /// The playback session currently on screen (nil when no player is presented).
     var playback: PlaybackCoordinator?
+    /// Session WebSocket for "Play on this device" and play-state commands from other clients.
+    let remoteControl = RemoteControlService()
     /// Set when the app runs under UI tests with canned server responses.
     let isUITest: Bool
 
@@ -30,6 +32,7 @@ final class AppEnvironment {
             guard let client = sessionStore?.active?.client else { return nil }
             return client.identity.authorizationHeader(token: client.accessToken)
         }
+        observeSessionForRemoteControl()
     }
 
     static func live() -> AppEnvironment {
@@ -72,12 +75,14 @@ final class AppEnvironment {
         case .background:
             Log.info(.ui, "App entered background")
             playback?.appDidEnterBackground()
+            remoteControl.suspend()
         case .inactive:
             playback?.appWillResignActive()
         case .active:
             Log.info(.ui, "App became active")
             playback?.appDidBecomeActive()
             refreshCapabilitiesIfNeeded()
+            remoteControl.resume()
         @unknown default:
             break
         }

@@ -43,6 +43,12 @@ Scripts/install-device.sh Wohnzimmer # pick a device by name when several are pa
 ```
 
    The first build registers the Apple TV in the developer portal and creates the tvOS development profile (`-allowProvisioningDeviceRegistration`). Add `-- -server http://host:8096` to `xcrun devicectl device process launch … com.ralleur.foyer` to start with the server field pre-filled (debug builds).
+3. Diagnose without Xcode: the app keeps a log file in its container (`Library/Caches/Logs/foyer.log`, 2 MB, one rotation).
+
+```bash
+Scripts/device-logs.sh Wohnzimmer 200                     # pulls it and prints the last 200 lines
+JF_SERVER=http://host:8096 JF_USER=… JF_PW=… Scripts/remote.py play "Dune"   # starts playback on the box via the server
+```
 
 Development builds installed this way stay valid for a year with a paid developer account. For a build that survives without the Mac, archive the *Foyer* scheme (Release) and distribute through TestFlight. The first build resolves two Swift packages: the local `FoyerCore` and [MPVKit](https://github.com/mpvkit/MPVKit) (binary xcframeworks, ~200 MB download once).
 
@@ -91,6 +97,7 @@ Sign in with username/password or **Quick Connect** (Settings › Quick Connect 
 | Player (advanced) | Click for controls, swipe to scrub with trickplay previews, swipe down for info/audio/subtitles/chapters, skip pill, next-episode countdown card, subtitle/audio delay, debug HUD. |
 | Watch state | Start/progress/stop reporting, resume anywhere, remembered audio language per series. |
 | Settings | Account/server, audio & subtitle languages and behaviour, subtitle size, streaming quality, direct play mode, advanced player mode, autoplay, debug tools (logs, capabilities, last decision, cache). |
+| Remote control | "Play on Foyer" from Jellyfin web or another app, pause/resume/seek/stop/next/previous, audio and subtitle switching and on-screen messages arrive over the session WebSocket. No play queue: *Play next/last* are declined. |
 
 ## Architecture in one paragraph
 

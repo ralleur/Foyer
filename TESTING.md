@@ -42,10 +42,22 @@ The mock server can also be used interactively: `Tools/MockJellyfin/server.py --
 
 ## Status
 
-- Core: 103 tests, all passing (Linux with Swift 6.2.4 and macOS with Xcode 27).
-- App unit tests (`FoyerTests`): 19 tests passing on the tvOS 27 simulator.
+- Core: 112 tests, all passing (Linux with Swift 6.2.4 and macOS with Xcode 27).
+- App unit tests (`FoyerTests`): 23 tests passing on the tvOS 27 simulator.
 - UI tests (`FoyerUITests`, fixtures): run on the simulator; see the notes in DEVELOPMENT.md for the focus-navigation fixes they triggered.
 - End-to-end tour (`Scripts/e2e-mock.sh`): all five `MockServerTour` tests pass on the tvOS 27 simulator (≈ 6 minutes; the app is reinstalled and the mock server restarted for every run so watch state starts from the fixture defaults).
+
+## On the Apple TV
+
+```bash
+Scripts/install-device.sh Wohnzimmer            # signed Debug build → install → launch (pair once with xcrun devicectl manage pair)
+Scripts/device-logs.sh Wohnzimmer 200           # pulls Library/Caches/Logs/foyer.log from the app container
+JF_SERVER=http://host:8096 JF_USER=… JF_PW=… Scripts/remote.py sessions      # what the server sees (play method, transcoding)
+JF_SERVER=… JF_USER=… JF_PW=… Scripts/remote.py play "Dune" --position 600   # "Play on" the box through the session socket
+JF_SERVER=… JF_USER=… JF_PW=… Scripts/remote.py watch 120                     # follow position/play method for two minutes
+```
+
+`remote.py` targets the Foyer session whose device name is "Apple TV" (a real box; simulators report their model) and also sends pause/seek/stop/next, audio/subtitle switches and messages, so the playback matrix below can be driven from the Mac while the TV is watched.
 
 ## Manual test plan (device)
 
