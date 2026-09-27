@@ -27,12 +27,22 @@ In Xcode: select the *Foyer* scheme, pick an Apple TV (or a tvOS simulator) and 
 
 ## Installing on an Apple TV
 
-1. On the Apple TV: *Settings › Remotes and Devices › Remote App and Devices*. In Xcode: *Window › Devices and Simulators*, select the Apple TV, *Pair*, enter the code shown on the TV. Pairing works over Wi-Fi; Mac and Apple TV must be on the same network.
-2. Then either run the *Foyer* scheme with the Apple TV as destination, or use the command line:
+1. Pair once (Wi-Fi, same network). On the Apple TV open *Settings › Remotes and Devices › Remote App and Devices*, then on the Mac:
+
+```bash
+xcrun devicectl manage pair --device "Wohnzimmer"   # name of the Apple TV; type the code the TV shows
+xcrun devicectl list devices                        # should list it as "available (paired)"
+```
+
+   Xcode 27 no longer has a *Devices and Simulators* window; the command above is the replacement. Xcode needs an Apple ID under *Settings › Accounts* so it can sign the build.
+2. Build, install and launch:
 
 ```bash
 Scripts/install-device.sh            # signed Debug build → install → launch on the paired Apple TV
+Scripts/install-device.sh Wohnzimmer # pick a device by name when several are paired
 ```
+
+   The first build registers the Apple TV in the developer portal and creates the tvOS development profile (`-allowProvisioningDeviceRegistration`). Add `-- -server http://host:8096` to `xcrun devicectl device process launch … com.ralleur.foyer` to start with the server field pre-filled (debug builds).
 
 Development builds installed this way stay valid for a year with a paid developer account. For a build that survives without the Mac, archive the *Foyer* scheme (Release) and distribute through TestFlight. The first build resolves two Swift packages: the local `FoyerCore` and [MPVKit](https://github.com/mpvkit/MPVKit) (binary xcframeworks, ~200 MB download once).
 

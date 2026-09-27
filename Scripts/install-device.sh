@@ -2,8 +2,9 @@
 # Builds a signed Debug build and installs + launches it on a paired Apple TV (wireless via Xcode pairing).
 #   Scripts/install-device.sh                 # first paired Apple TV
 #   Scripts/install-device.sh "Wohnzimmer"    # by device name (substring)
-# Pair once: Apple TV › Settings › Remotes and Devices › Remote App and Devices, then Xcode › Window › Devices
-# and Simulators › select the Apple TV › Pair and enter the code shown on the TV.
+# Pair once: Apple TV › Settings › Remotes and Devices › Remote App and Devices, then on the Mac
+#   xcrun devicectl manage pair --device "<Apple TV name>"
+# and enter the code shown on the TV (Xcode 27 has no Devices and Simulators window any more).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NAME="${1:-}"
@@ -19,11 +20,14 @@ for x in devs:
 ")
 [ -n "$UDID" ] || { echo "No paired physical Apple TV found. Pair it in Xcode › Window › Devices and Simulators first." >&2; exit 1; }
 echo "Building for device…"
-xcodebuild -project Foyer.xcodeproj -scheme Foyer -configuration Debug -destination "generic/platform=tvOS" \
-  -derivedDataPath "$DERIVED" -allowProvisioningUpdates build 2>&1 | grep -E "error:|\*\* BUILD" || true
+# The concrete device as destination + -allowProvisioningDeviceRegistration lets Xcode register the Apple TV
+# in the developer portal on the first build (otherwise: "Your team has no devices…").
+xcodebuild -project Foyer.xcodeproj -scheme Foyer -configuration Debug -destination "platform=tvOS,id=$UDID" \
+  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -allowProvisioningDeviceRegistration build 2>&1 \
+  | grep -E "error:|warning: .*(provision|sign)|\*\* BUILD" || true
 APP="$DERIVED/Build/Products/Debug-appletvos/Foyer.app"
 [ -d "$APP" ] || { echo "Build failed (no $APP)" >&2; exit 1; }
-echo "Installing on $UDID…"
+echo "Installing on ${UDID}…"
 xcrun devicectl device install app --device "$UDID" "$APP"
 xcrun devicectl device process launch --device "$UDID" com.ralleur.foyer
 echo "Foyer is running on the Apple TV."

@@ -94,3 +94,9 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 
 **Observation (logging proxy between app and server):** For the HDR MKV Jellyfin's master playlist advertised two variants — the HEVC/Dolby Vision copy (`VIDEO-RANGE=PQ`, `SUPPLEMENTAL-CODECS="dvh1.08.06/db1p"`) and an H.264/SDR re-encode with identical `BANDWIDTH`. The simulator's AVPlayer picked the H.264 variant because it cannot play Dolby Vision, which is why the server kept encoding although the copy was available and chosen by the app. Probing with curl showed that Jellyfin adds this "SDR entrance" whatever the profile says (transcoding codec list, direct-play codecs, range conditions), so it cannot be suppressed from the client.
 **Decision:** Nothing to change in the profile (an attempt to list only the source codec was reverted as ineffective). The app's decision, `PlaybackInfo` request and reported play method are correct; whether AVPlayer takes the HEVC/DV variant is verified on a real Apple TV 4K (device test plan).
+
+## First install on a real Apple TV 4K (tvOS 26.6)
+
+**Observation:** Xcode 27 has no *Devices and Simulators* window; wireless pairing is done with `xcrun devicectl manage pair --device <name>` (the TV shows the code under *Remote App and Devices*). The first signed build failed with *"Your team has no devices from which to generate a provisioning profile"* because `generic/platform=tvOS` never registers a device.
+**Decision:** `Scripts/install-device.sh` builds for the concrete device (`platform=tvOS,id=<udid>`) with `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`; the first run registers the Apple TV and creates the development profile, later runs are incremental. Bash 3.2 gotcha on the way: `"$UDID…"` (ellipsis right after the name) is parsed as an unbound variable, so the script uses `${UDID}`.
+
