@@ -54,6 +54,8 @@ JF_SERVER=http://host:8096 JF_USER=… JF_PW=… Scripts/remote.py play "Dune"  
 
 Development builds installed this way stay valid for a year with a paid developer account. For a build that survives without the Mac, archive the *Vela* scheme (Release) and distribute through TestFlight. The first build resolves two Swift packages: the local `VelaCore` and [MPVKit](https://github.com/mpvkit/MPVKit) (binary xcframeworks, ~200 MB download once).
 
+A nightly check of the whole library (every title played in the simulator against the server, results in `~/VelaNightly`) is described in [TESTING.md](TESTING.md#nightly-library-check).
+
 Run the platform-independent tests without Xcode (macOS or Linux):
 
 ```bash

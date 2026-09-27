@@ -674,6 +674,12 @@ final class PlaybackCoordinator: Identifiable {
         }
     }
 
+    /// Progress of the bitmap subtitle overlay (self-test and debug screen): frames decoded so far and a failure text.
+    var bitmapSubtitleStatus: (decoded: Int, failure: String?)? {
+        guard let bitmapSubtitle else { return nil }
+        return (bitmapSubtitle.decodedFrameCount, bitmapSubtitle.failure)
+    }
+
     // MARK: Bitmap subtitle overlay
 
     private func startBitmapOverlay(streamIndex: Int, source: MediaSource, at time: TimeInterval) {

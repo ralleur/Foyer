@@ -27,6 +27,9 @@ extension AppEnvironment: RemoteCommandHandler {
     private func sessionDidChangeForRemoteControl() {
         if let client = sessionStore.active?.client, !isUITest {
             remoteControl.connect(client: client)
+            #if DEBUG
+            selfTest?.startIfNeeded()
+            #endif
         } else {
             remoteControl.disconnect()
         }

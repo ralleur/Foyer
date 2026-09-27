@@ -22,6 +22,8 @@ final class AppEnvironment {
     #if DEBUG
     /// `-play-url <url>`: show a stock AVPlayer for this URL instead of the app (device diagnostics).
     var debugPlayURL: URL?
+    /// `-selftest queue`: plays every item in the queue file and writes a report (Tools/Nightly).
+    var selfTest: SelfTestRunner?
     #endif
 
     init(preferences: Preferences, sessionStore: SessionStore, images: ImagePipeline, logBuffer: LogBuffer,
@@ -72,6 +74,7 @@ final class AppEnvironment {
                                          capabilities: capabilities, isUITest: isUITest)
         #if DEBUG
         environment.debugPlayURL = UserDefaults.standard.string(forKey: "play-url").flatMap(URL.init(string:))
+        if UserDefaults.standard.string(forKey: "selftest") == "queue" { environment.selfTest = SelfTestRunner(environment: environment) }
         if let url = environment.debugPlayURL { Log.notice(.ui, "Debug URL player requested for \(url.absoluteString)") }
         #endif
         return environment

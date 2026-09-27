@@ -38,6 +38,23 @@ final class BitmapSubtitleSourceTests: XCTestCase {
         XCTAssertNotNil(source.frame(at: 1.5))
     }
 
+    /// The same bars re-encoded as DVD subtitles (VobSub): palette comes from the container's codec extradata.
+    func testDecodesVobSubTrack() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "dvdsub-sample", withExtension: "mkv"))
+        let source = BitmapSubtitleSource(url: url, streamIndex: 1, language: "ger")
+        source.start(at: 0)
+        defer { source.stop() }
+        try await waitUntil { source.frame(at: 1.5) != nil || source.failure != nil }
+        XCTAssertNil(source.failure)
+        let frame = try XCTUnwrap(source.frame(at: 1.5))
+        XCTAssertEqual(frame.images.count, 1)
+        XCTAssertGreaterThan(frame.images[0].width, 300)
+        XCTAssertGreaterThan(frame.canvasWidth, 0)
+        XCTAssertNotNil(frame.end, "DVD subtitles carry their end time")
+        XCTAssertNil(source.frame(at: 0.5))
+        XCTAssertNotNil(source.frame(at: 4.5), "second bar")
+    }
+
     func testMissingStreamReportsFailure() async throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "pgs-sample", withExtension: "mkv"))
         let source = BitmapSubtitleSource(url: url, streamIndex: 7, language: nil)

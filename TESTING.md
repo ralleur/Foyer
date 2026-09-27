@@ -71,6 +71,26 @@ Debug-build launch arguments (`xcrun devicectl device process launch … com.ral
 
 Verified on an Apple TV 4K (2022, tvOS 26.6, HDMI to a TV) on 2026-09-27: sign-in, Home, remote control, HDR10 MKV remux (Direct Stream, HDR kept), Dolby Vision WEBRip (RPU stripped by the server), DV profile 7 remux (HDR10 base layer, TrueHD → AC-3), DV profile 8 MKV with PGS in the advanced engine (VideoToolbox, tone-mapped), H.264 MP4 direct play, resume position restore, seeking to 30 min in a remux, pause/resume and messages by remote control, text subtitles switched on/off in the system player without flipping back, a German PGS track drawn over an HDR remux (start at 20 min, first bitmap decoded from the original file within a second of playback). Not yet verified on the device: audio passthrough on an AV receiver, HLG, frame-rate switching for the native engine, seeking in remuxes, TestFlight builds.
 
+## Nightly library check
+
+`Scripts/nightly.sh` plays the whole library, title by title, in Vela's self-test mode on a tvOS simulator against the real server and keeps a ledger of what was checked:
+
+```bash
+cat > ~/.config/vela/nightly.env <<'EOF2'      # never in the repository
+JF_SERVER=http://server:8096
+JF_USER=name
+JF_PW=secret
+EOF2
+Scripts/nightly.sh run --dry-run             # what would be checked tonight
+Scripts/nightly.sh run --limit 3 --deadline 23:30   # a short manual run
+Scripts/nightly.sh install                   # launchd agent, 03:00 daily, stops starting titles at 06:00
+Scripts/nightly.sh status | summary [DATE]
+```
+
+Per title the app (`-selftest queue`, debug builds) starts playback at 10 % of the runtime, waits for the first frames and eight seconds of progress, selects the preferred subtitle tracks (text: cues loaded; bitmap on the native route: frames decoded from the original file; mpv: track selected and still playing), switches to the other audio tracks, seeks ten minutes ahead, closes, and puts the item's watch state back. Movies get the full budget (150 s), episodes 60 s (start, progress, one subtitle track). Order: movies, then one episode per season, then the rest, newest first. Results land in `~/VelaNightly/<date>/` (`report.jsonl`, `summary.md`, `app.log`); `checked.json` remembers file etag and size, so later nights only take new, changed or previously failed titles (three attempts).
+
+Limits: the simulator plays HEVC HDR remuxes through Jellyfin's H.264 variant, so the box's own HEVC/Dolby Vision decoding is not exercised (the device run above covers that); mpv's subtitle rendering is checked only by selection. A run on the real Apple TV would wake the television, so it is not scheduled.
+
 ## Manual test plan (device)
 
 Playback matrix (see PLAYBACK.md) on a real Apple TV 4K with an HDR display and an AV receiver:

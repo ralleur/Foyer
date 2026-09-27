@@ -136,6 +136,17 @@ public extension JellyfinClient {
     // MARK: Watch state
 
     @discardableResult
+    /// Sets position and played flag directly (`POST /UserItems/{id}/UserData`, Jellyfin 10.10+). Used by the
+    /// self-test to put an item's watch state back after playing it.
+    func updateUserData(itemId: String, positionTicks: Int64, played: Bool) async throws {
+        struct Body: Encodable {
+            let playbackPositionTicks: Int64
+            let played: Bool
+            enum CodingKeys: String, CodingKey { case playbackPositionTicks = "PlaybackPositionTicks", played = "Played" }
+        }
+        _ = try await send(try Endpoint.post("/UserItems/\(itemId)/UserData", json: Body(playbackPositionTicks: positionTicks, played: played)))
+    }
+
     func markPlayed(itemId: String, played: Bool) async throws -> UserData {
         let uid = try requireUserId()
         return try await withLegacyFallback {
