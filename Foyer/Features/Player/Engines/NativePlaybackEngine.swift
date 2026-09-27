@@ -244,9 +244,15 @@ final class NativePlaybackEngine: NSObject, PlaybackEngine {
 
     func seek(to time: TimeInterval) {
         let target = CMTime(seconds: max(0, time), preferredTimescale: 600)
+        let ranges = (player.currentItem?.seekableTimeRanges ?? []).compactMap { $0.timeRangeValue }
+            .map { "\(Int($0.start.seconds))-\(Int($0.end.seconds))" }.joined(separator: ",")
+        let before = player.currentTime().seconds
+        Log.info(.playback, "Native engine seek to \(time.clockString) from \(before.clockString); seekable [\(ranges)] duration \(duration.clockString)")
         player.seek(to: target, toleranceBefore: CMTime(seconds: 0.5, preferredTimescale: 600), toleranceAfter: CMTime(seconds: 0.5, preferredTimescale: 600)) { [weak self] finished in
             Task { @MainActor [weak self] in
-                guard let self, finished else { return }
+                guard let self else { return }
+                Log.info(.playback, "Native engine seek \(finished ? "landed" : "cancelled") at \(self.player.currentTime().seconds.clockString)")
+                guard finished else { return }
                 self.delegate?.engineDidCompleteSeek(self)
             }
         }

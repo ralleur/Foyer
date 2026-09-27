@@ -43,6 +43,8 @@ Both device profiles always carry explicit `MaxStreamingBitrate`/`MaxStaticBitra
 
 Every decision carries `reasons` (positive facts and blockers of the other engine) and `compromises` (e.g. "TrueHD becomes E-AC-3"). They are logged under PLAYBACK and shown in Settings › Debug › Last playback decision and the player's info panel when debug mode is on.
 
+A seek keeps its target until the engine confirms it: AVPlayer reports the old position for a moment, and if the stream fails during the seek the next route resumes at the target, not before it.
+
 ### Fallback chain
 
 If an engine fails to open or play (`didFail`), the coordinator stops the session, re-runs preparation at the last position (or at the originally requested position when no frame was shown yet) with the next route in `[other engine's direct play, Direct Stream, Transcode]` that has not been tried, and asks the server again with `EnableDirectPlay=false` for server routes. Only when the chain is exhausted does the user see an error (with the technical reason under Debug).

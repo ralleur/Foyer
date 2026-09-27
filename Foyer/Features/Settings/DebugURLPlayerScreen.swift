@@ -17,6 +17,21 @@ struct DebugURLPlayerScreen: UIViewControllerRepresentable {
         context.coordinator.observe(item: item, player: player)
         Log.notice(.playback, "DebugURLPlayer: loading \(url.absoluteString)")
         player.play()
+        // `-play-seek <seconds>` seeks after `-play-seek-after` seconds (default 12) the way the native engine does.
+        if let target = UserDefaults.standard.string(forKey: "play-seek").flatMap(Double.init) {
+            let delay = UserDefaults.standard.string(forKey: "play-seek-after").flatMap(Double.init) ?? 12
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(delay))
+                let ranges = (item.seekableTimeRanges).compactMap { $0.timeRangeValue }.map { "\(Int($0.start.seconds))-\(Int($0.end.seconds))" }.joined(separator: ",")
+                Log.notice(.playback, "DebugURLPlayer: seeking to \(Int(target)) s from \(player.currentTime().seconds) s; seekable [\(ranges)]; duration \(item.duration.seconds)")
+                player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: CMTime(seconds: 0.5, preferredTimescale: 600),
+                            toleranceAfter: CMTime(seconds: 0.5, preferredTimescale: 600)) { finished in
+                    Task { @MainActor in
+                        Log.notice(.playback, "DebugURLPlayer: seek \(finished ? "landed" : "cancelled") at \(player.currentTime().seconds) s; \(AVPlayerDiagnostics.describe(item))")
+                    }
+                }
+            }
+        }
         return controller
     }
 

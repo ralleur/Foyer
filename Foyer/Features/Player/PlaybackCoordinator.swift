@@ -80,6 +80,9 @@ final class PlaybackCoordinator: Identifiable {
     private var loadedFullItem = false
     /// Start position handed to the current engine; used when a fallback happens before playback began.
     private var requestedStartPosition: TimeInterval = 0
+    /// Seek target until the engine confirms it: keeps stale pre-seek time updates from overwriting
+    /// `currentTime`, and lets a fallback after a failed seek resume at the target, not before it.
+    private var pendingSeek: (target: TimeInterval, issued: Date)?
     /// Set while a next/previous item or a route change is in flight; blocks re-entrant transitions.
     private var transitioning = false
 
@@ -393,8 +396,10 @@ final class PlaybackCoordinator: Identifiable {
             return
         }
         Log.warning(.playback, "Route \(decision?.route.rawValue ?? "?") failed (\(error)); trying \(next.rawValue)")
-        // If the engine never produced a frame, resume where the user asked to start, not at 0.
-        let position = didReportStart ? max(currentTime, 0) : max(currentTime, requestedStartPosition)
+        // If the engine never produced a frame, resume where the user asked to start, not at 0;
+        // if it died during a seek, resume at the seek target.
+        let position = pendingSeek?.target ?? (didReportStart ? max(currentTime, 0) : max(currentTime, requestedStartPosition))
+        pendingSeek = nil
         isSwitchingEngine = true
         transitioning = true
         Task {
@@ -488,6 +493,7 @@ final class PlaybackCoordinator: Identifiable {
 
     func seek(to time: TimeInterval) {
         let clamped = max(0, min(time, duration > 0 ? duration - 0.5 : time))
+        pendingSeek = (clamped, Date())
         engine?.seek(to: clamped)
         currentTime = clamped
     }
@@ -562,6 +568,7 @@ final class PlaybackCoordinator: Identifiable {
         attemptedRoutes = []
         fallbackRoutes = []
         didReportStart = false
+        pendingSeek = nil
         currentTime = 0
         duration = 0
         skipPrompt = .none
@@ -685,6 +692,13 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
 
     func engine(_ engine: any PlaybackEngine, didUpdateTime time: TimeInterval, duration: TimeInterval) {
         guard engine === self.engine else { return }
+        if let pending = pendingSeek {
+            if abs(time - pending.target) <= 3 || Date().timeIntervalSince(pending.issued) > 15 {
+                pendingSeek = nil
+            } else {
+                return // the player still reports the pre-seek position
+            }
+        }
         currentTime = time
         if duration > 0, abs(self.duration - duration) > 0.5 {
             self.duration = duration
@@ -713,6 +727,7 @@ extension PlaybackCoordinator: PlaybackEngineDelegate {
 
     func engineDidCompleteSeek(_ engine: any PlaybackEngine) {
         guard engine === self.engine else { return }
+        pendingSeek = nil
         reporter.didSeek()
     }
 

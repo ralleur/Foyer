@@ -131,3 +131,12 @@ Only decisions that shape the product or architecture. Newest at the bottom.
 
 A Dolby Vision profile 8 MKV with TrueHD and a German PGS track selected (English audio) goes to the advanced engine and is tone-mapped: the system player cannot show PGS and burn-in would cost a full transcode. Subtitles the user asked for win over HDR; the decision screen says so. Switching the subtitle off moves such titles to the HDR remux.
 
+## Seeking in a remux failed on the device — for one file
+
+**Observation:** Seeking a remuxed HDR title from 0:12 to 30:00 on the Apple TV failed with `CoreMediaErrorDomain -19602`; Jellyfin's log showed the restart at `-ss 00:09:25 -start_number 94`, so AVPlayer had asked for segment 94 instead of 299. The simulator (which plays the H.264 variant) asked for 299. With `-play-url … -play-seek 1800` behind a logging proxy the stock player did the same (segments 91–94). Fetching the fresh remux showed why: segment 2 starts at 8.6 s, segments 3+ carry video timestamps around 1295 s in 44 ms steps while the playlist declares 6.006 s each — ffmpeg loses the timeline in this MKV (`EBML number … exceeds max length` at 3 MB: the file is damaged). AVPlayer builds its seek map from the timestamps it has seen and lands in the wrong place; the same seek in a healthy file (The Invite) lands exactly.
+**Decision:** Nothing to fix in the packaging. Two things were wrong on our side and are fixed: after a failed seek the fallback resumed at the *pre-seek* position (stale time updates from AVPlayer overwrote the target) — the coordinator now keeps the seek target until the engine confirms it and resumes there; and seek diagnostics (target, seekable ranges, landing) are logged.
+
+## Device diagnostics kit
+
+`-play-url <url>` with `-play-seek <s>` (`-play-seek-after <s>`, default 12) plus a logging proxy on the Mac (`proxy.py` in a scratch directory forwarding to Jellyfin) shows exactly which playlists and segments the box requests, with the AppleCoreMedia user agent; `AVPlayerDiagnostics` logs the error chain, tracks and format descriptions. This found the audio-route problem, the profile-7 rejection and the damaged file within an afternoon; keep it.
+

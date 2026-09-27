@@ -186,6 +186,31 @@ final class PlaybackCoordinatorTests: XCTestCase {
         XCTAssertEqual(engines.count, 1, "no autoplay after cancel")
     }
 
+    func testFallbackAfterFailedSeekResumesAtSeekTarget() async throws {
+        let coordinator = makeCoordinator(item: BaseItem(id: "a1b2c3", name: "Dune", type: .movie))
+        coordinator.begin()
+        try await waitUntilReady(coordinator)
+        let first = try XCTUnwrap(engines.first)
+        first.simulateReady()
+        first.delegate?.engine(first, didUpdateTime: 1210, duration: 9984)
+        coordinator.seek(to: 3000)
+        XCTAssertEqual(first.seeks, [3000])
+        // AVPlayer keeps reporting the old position while the seek is in flight; it must not win.
+        first.delegate?.engine(first, didUpdateTime: 1211, duration: 9984)
+        XCTAssertEqual(coordinator.currentTime, 3000, accuracy: 0.5)
+        first.delegate?.engine(first, didFail: FoyerError(.videoLoadFailed, detail: "segment"))
+        for _ in 0..<200 where engines.count < 2 { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(engines.count, 2)
+        XCTAssertEqual(engines.last?.loadRequests.first?.startPosition ?? -1, 3000, accuracy: 0.5, "fallback resumes at the seek target")
+        // After a completed seek, time updates flow again.
+        let second = try XCTUnwrap(engines.last)
+        second.simulateReady()
+        second.currentTime = 3001
+        second.delegate?.engineDidCompleteSeek(second)
+        second.delegate?.engine(second, didUpdateTime: 3002, duration: 9984)
+        XCTAssertEqual(coordinator.currentTime, 3002, accuracy: 0.5)
+    }
+
     func testCloseStopsEngineAndCallsBack() async throws {
         let coordinator = makeCoordinator(item: BaseItem(id: "a1b2c3", name: "Dune", type: .movie))
         let closed = expectation(description: "closed")

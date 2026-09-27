@@ -43,7 +43,7 @@ The mock server can also be used interactively: `Tools/MockJellyfin/server.py --
 ## Status
 
 - Core: 112 tests, all passing (Linux with Swift 6.2.4 and macOS with Xcode 27).
-- App unit tests (`FoyerTests`): 23 tests passing on the tvOS 27 simulator.
+- App unit tests (`FoyerTests`): 24 tests passing on the tvOS 27 simulator.
 - UI tests (`FoyerUITests`, fixtures): run on the simulator; see the notes in DEVELOPMENT.md for the focus-navigation fixes they triggered.
 - End-to-end tour (`Scripts/e2e-mock.sh`): all five `MockServerTour` tests pass on the tvOS 27 simulator (≈ 6 minutes; the app is reinstalled and the mock server restarted for every run so watch state starts from the fixture defaults).
 
@@ -67,8 +67,9 @@ Debug-build launch arguments (`xcrun devicectl device process launch … com.ral
 | `-capabilities appleTV4K\|appleTV4KSDR\|appleTVHD` | decide routes like that box (simulator) |
 | `-play-url <url>` | show a stock AVPlayer for the URL and log its diagnostics (isolates a stream problem from the app) |
 | `-audio-channels N` | preferred audio output channels (0 = route default; default is min(max, 8)) |
+| `-play-seek S`, `-play-seek-after T` | with `-play-url`: seek to S seconds after T seconds (default 12) and log what AVPlayer does |
 
-Verified on an Apple TV 4K (2022, tvOS 26.6, HDMI to a TV) on 2026-09-27: sign-in, Home, remote control, HDR10 MKV remux (Direct Stream, HDR kept), Dolby Vision WEBRip (RPU stripped by the server), DV profile 7 remux (HDR10 base layer, TrueHD → AC-3), DV profile 8 MKV with PGS in the advanced engine (VideoToolbox, tone-mapped), H.264 MP4 direct play, resume position restore. Not yet verified on the device: audio passthrough on an AV receiver, HLG, frame-rate switching for the native engine, seeking in remuxes, TestFlight builds.
+Verified on an Apple TV 4K (2022, tvOS 26.6, HDMI to a TV) on 2026-09-27: sign-in, Home, remote control, HDR10 MKV remux (Direct Stream, HDR kept), Dolby Vision WEBRip (RPU stripped by the server), DV profile 7 remux (HDR10 base layer, TrueHD → AC-3), DV profile 8 MKV with PGS in the advanced engine (VideoToolbox, tone-mapped), H.264 MP4 direct play, resume position restore, seeking to 30 min in a remux, pause/resume and messages by remote control. Not yet verified on the device: audio passthrough on an AV receiver, HLG, frame-rate switching for the native engine, seeking in remuxes, TestFlight builds.
 
 ## Manual test plan (device)
 
