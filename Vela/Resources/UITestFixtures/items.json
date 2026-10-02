@@ -1,0 +1,6 @@
+{ "Items": [
+  { "Name": "Dune: Part Two", "Id": "a1b2c3", "Type": "Movie", "MediaType": "Video", "ProductionYear": 2024, "RunTimeTicks": 99840000000, "OfficialRating": "FSK 12", "CommunityRating": 8.4, "ImageTags": {}, "UserData": { "Played": false, "PlaybackPositionTicks": 12000000000, "PlayedPercentage": 12.0 } },
+  { "Name": "Heat", "Id": "mv1", "Type": "Movie", "MediaType": "Video", "ProductionYear": 1995, "RunTimeTicks": 102000000000, "ImageTags": {}, "UserData": { "Played": true } },
+  { "Name": "Arrival", "Id": "mv2", "Type": "Movie", "MediaType": "Video", "ProductionYear": 2016, "RunTimeTicks": 69600000000, "ImageTags": {}, "UserData": { "Played": false } },
+  { "Name": "The Expanse", "Id": "series1", "Type": "Series", "ProductionYear": 2015, "Status": "Ended", "ImageTags": {}, "UserData": { "UnplayedItemCount": 5 } }
+], "TotalRecordCount": 4, "StartIndex": 0 }

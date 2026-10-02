@@ -1,0 +1,25 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/VelaCore/.build/
+Package.resolved.bak
+
+# macOS
+.DS_Store
+
+# Secrets / local config (never commit)
+*.xcconfig.local
+LocalSigning.xcconfig
+Tools/MockJellyfin/media/

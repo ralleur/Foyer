@@ -1,0 +1,15 @@
+{
+  "Items": [
+    {
+      "Name": "Pilot", "Id": "ep1", "Type": "Episode", "MediaType": "Video", "SeriesName": "The Expanse", "SeriesId": "series1", "SeasonId": "season1",
+      "IndexNumber": 1, "ParentIndexNumber": 1, "RunTimeTicks": 27000000000, "ImageTags": {"Primary": "x"}, "ParentBackdropItemId": "series1", "ParentBackdropImageTags": ["bb"],
+      "SeriesPrimaryImageTag": "sp", "UserData": { "PlaybackPositionTicks": 9000000000, "Played": false, "PlayedPercentage": 33.3 }
+    },
+    {
+      "Name": "Heat", "Id": "mv1", "Type": "Movie", "MediaType": "Video", "RunTimeTicks": 102000000000, "ProductionYear": 1995,
+      "UserData": { "PlaybackPositionTicks": 60000000000, "Played": false, "PlayedPercentage": 58.8 }
+    }
+  ],
+  "TotalRecordCount": 2,
+  "StartIndex": 0
+}

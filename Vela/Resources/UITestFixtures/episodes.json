@@ -1,0 +1,5 @@
+{ "Items": [
+  { "Name": "Dulcinea", "Id": "ep1", "Type": "Episode", "MediaType": "Video", "SeriesId": "series1", "SeriesName": "The Expanse", "SeasonId": "season1", "IndexNumber": 1, "ParentIndexNumber": 1, "RunTimeTicks": 27000000000, "Overview": "Detective Miller is assigned a missing-person case.", "ImageTags": {}, "UserData": { "Played": true } },
+  { "Name": "The Big Empty", "Id": "ep2", "Type": "Episode", "MediaType": "Video", "SeriesId": "series1", "SeriesName": "The Expanse", "SeasonId": "season1", "IndexNumber": 2, "ParentIndexNumber": 1, "RunTimeTicks": 26000000000, "Overview": "Survivors of the Canterbury struggle.", "ImageTags": {}, "UserData": { "Played": false, "PlaybackPositionTicks": 9000000000, "PlayedPercentage": 34.6 } },
+  { "Name": "Retrograde", "Id": "ep3", "Type": "Episode", "MediaType": "Video", "SeriesId": "series1", "SeriesName": "The Expanse", "SeasonId": "season1", "IndexNumber": 3, "ParentIndexNumber": 1, "RunTimeTicks": 26400000000, "Overview": "Holden and the crew make a discovery.", "ImageTags": {}, "UserData": { "Played": false } }
+], "TotalRecordCount": 3, "StartIndex": 0 }

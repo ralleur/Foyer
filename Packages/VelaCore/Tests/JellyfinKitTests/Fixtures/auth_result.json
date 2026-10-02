@@ -1,0 +1,11 @@
+{
+  "User": {
+    "Name": "anna", "ServerId": "srv1", "Id": "user1", "HasPassword": true, "HasConfiguredPassword": true, "PrimaryImageTag": "u1",
+    "LastLoginDate": "2024-05-01T10:00:00.000Z",
+    "Configuration": { "AudioLanguagePreference": "deu", "PlayDefaultAudioTrack": true, "SubtitleLanguagePreference": "deu", "SubtitleMode": "Smart", "EnableNextEpisodeAutoPlay": true, "RememberAudioSelections": true, "RememberSubtitleSelections": true, "OrderedViews": ["lib1", "lib2"] },
+    "Policy": { "IsAdministrator": false, "EnableMediaPlayback": true, "EnableVideoPlaybackTranscoding": true, "EnablePlaybackRemuxing": true, "RemoteClientBitrateLimit": 0 }
+  },
+  "SessionInfo": { "Id": "sess1", "Client": "Vela", "DeviceName": "Wohnzimmer" },
+  "AccessToken": "tok_ABC",
+  "ServerId": "srv1"
+}

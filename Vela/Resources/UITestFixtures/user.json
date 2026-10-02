@@ -1,0 +1,3 @@
+{ "Name": "anna", "ServerId": "srv1", "Id": "user1", "HasPassword": true, "PrimaryImageTag": null,
+  "Configuration": { "AudioLanguagePreference": "deu", "SubtitleLanguagePreference": "deu", "SubtitleMode": "Smart", "EnableNextEpisodeAutoPlay": true, "OrderedViews": [] },
+  "Policy": { "IsAdministrator": false, "EnableMediaPlayback": true, "EnableVideoPlaybackTranscoding": true, "EnablePlaybackRemuxing": true } }

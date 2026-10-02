@@ -1,0 +1,4 @@
+{ "Items": [
+  { "Name": "The Expanse", "Id": "series1", "Type": "Series", "ProductionYear": 2015, "Status": "Ended", "ImageTags": {}, "UserData": { "UnplayedItemCount": 5 } },
+  { "Name": "Severance", "Id": "series2", "Type": "Series", "ProductionYear": 2022, "Status": "Continuing", "ImageTags": {}, "UserData": { "UnplayedItemCount": 9 } }
+], "TotalRecordCount": 2, "StartIndex": 0 }

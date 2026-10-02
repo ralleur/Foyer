@@ -1,0 +1,167 @@
+# XcodeGen project specification. Regenerate with: xcodegen generate
+name: Vela
+options:
+  bundleIdPrefix: com.ralleur
+  deploymentTarget:
+    tvOS: "17.0"
+  developmentLanguage: en
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+  groupSortPosition: top
+  minimumXcodeGenVersion: "2.40.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: targeted
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    CODE_SIGN_STYLE: Automatic
+    # Set your Apple Developer team here or in Xcode › Signing & Capabilities.
+    DEVELOPMENT_TEAM: "M8735KCYG5"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+
+packages:
+  VelaCore:
+    path: Packages/VelaCore
+  MPVKit:
+    url: https://github.com/mpvkit/MPVKit.git
+    exactVersion: 1.0.0
+
+targets:
+  Vela:
+    type: application
+    platform: tvOS
+    sources:
+      - path: Vela
+        excludes:
+          - "Resources/UITestFixtures/**"
+      - path: Vela/Resources/UITestFixtures
+        type: folder
+        buildPhase: resources
+      - path: Shared
+    dependencies:
+      - package: VelaCore
+        product: VelaFoundation
+      - package: VelaCore
+        product: JellyfinKit
+      - package: VelaCore
+        product: PlaybackDecision
+      - package: VelaCore
+        product: TopShelfKit
+      - package: MPVKit
+        product: MPVKit
+      - target: VelaTopShelf
+    info:
+      path: Vela/Resources/Info.plist
+      properties:
+        # Deep links from the Top Shelf: vela://item/<id>, vela://play/<id>
+        CFBundleURLTypes:
+          - CFBundleURLName: com.ralleur.vela
+            CFBundleURLSchemes: [vela]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralleur.vela
+        PRODUCT_NAME: Vela
+        INFOPLIST_FILE: Vela/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Vela/Resources/Vela.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "3"
+        ENABLE_PREVIEWS: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
+  # Top Shelf: "Continue Watching" and "Recently Added" above Vela's tile on the Apple TV home screen.
+  VelaTopShelf:
+    type: app-extension
+    platform: tvOS
+    sources:
+      - path: VelaTopShelf
+        excludes:
+          - "*.entitlements"
+      - path: Shared
+    dependencies:
+      - package: VelaCore
+        product: VelaFoundation
+      - package: VelaCore
+        product: JellyfinKit
+      - package: VelaCore
+        product: TopShelfKit
+      - sdk: TVServices.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralleur.vela.topshelf
+        PRODUCT_NAME: VelaTopShelf
+        INFOPLIST_FILE: VelaTopShelf/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: VelaTopShelf/VelaTopShelf.entitlements
+        TARGETED_DEVICE_FAMILY: "3"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+  VelaTests:
+    type: bundle.unit-test
+    platform: tvOS
+    sources:
+      - path: VelaTests
+    dependencies:
+      - target: Vela
+      - package: VelaCore
+        product: VelaFoundation
+      - package: VelaCore
+        product: JellyfinKit
+      - package: VelaCore
+        product: PlaybackDecision
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralleur.vela.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Vela.app/Vela"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  VelaUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    sources:
+      - path: VelaUITests
+    dependencies:
+      - target: Vela
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralleur.vela.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Vela
+
+schemes:
+  Vela:
+    build:
+      targets:
+        Vela: all
+        VelaTests: [test]
+        VelaUITests: [test]
+    run:
+      config: Debug
+      # MoltenVK + libplacebo trip Metal API validation on some HDR files; validation stays off for Run (MPVKit guidance).
+      enableGPUValidationMode: disabled
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - VelaTests
+        - VelaUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
